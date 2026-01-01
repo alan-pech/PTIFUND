@@ -523,7 +523,21 @@ async function saveAndUploadAudio() {
     btnSave.disabled = true;
 
     try {
-        await uploadAudio(audioRecorder.targetSlideId, blob);
+        const publicUrl = await uploadAudio(audioRecorder.targetSlideId, blob);
+
+        // Immediate UI Update
+        const item = document.querySelector(`.gallery-item[data-id="${audioRecorder.targetSlideId}"]`);
+        if (item) {
+            item.dataset.audio = publicUrl;
+            if (!item.querySelector('.audio-icon')) {
+                const icon = document.createElement('div');
+                icon.className = 'audio-icon';
+                icon.style.pointerEvents = 'none';
+                icon.textContent = '♪';
+                item.appendChild(icon);
+            }
+        }
+
         closeAudioRecorder();
         alert('Audio tagged successfully!');
     } catch (err) {
@@ -550,6 +564,34 @@ async function uploadAudio(slideId, blob) {
         .eq('id', slideId);
 
     if (dbErr) throw dbErr;
+    return publicUrl;
+}
+
+async function deleteAudio(slideId, audioUrl) {
+    if (!confirm('Are you sure you want to delete this audio recording?')) return;
+
+    try {
+        // 1. Storage Cleanup
+        if (audioUrl) {
+            const path = audioUrl.split('/').pop();
+            await supabaseClient.storage.from('post-assets').remove([`audio/${path}`]);
+        }
+
+        // 2. Database Update
+        await supabaseClient.from('slides').update({ audio_url: null }).eq('id', slideId);
+
+        // 3. Immediate UI Update
+        const item = document.querySelector(`.gallery-item[data-id="${slideId}"]`);
+        if (item) {
+            item.dataset.audio = '';
+            const icon = item.querySelector('.audio-icon');
+            if (icon) icon.remove();
+        }
+
+        alert('Audio deleted successfully.');
+    } catch (err) {
+        alert('Failed to delete audio: ' + err.message);
+    }
 }
 
 // --- Subscriber Management Logic ---
@@ -613,30 +655,58 @@ function showContextMenu(x, y, slide) {
     menu.style.top = `${y}px`;
     menu.style.left = `${x}px`;
 
+    const hasAudio = !!slide.audio_url && slide.audio_url !== '';
+
     menu.innerHTML = `
-        <div class="menu-item" id="menu-record">🔴 Record Audio</div>
-        <div class="menu-item delete" id="menu-delete">🗑️ Delete Slide</div>
+        <div class="menu-item" id="menu-record-action">
+            ${hasAudio ? '�️ Delete Recorded Audio' : '�🔴 Record Audio'}
+        </div>
+        <div class="menu-item delete" id="menu-delete-slide">🗑️ Delete Slide</div>
     `;
 
     document.body.appendChild(menu);
 
     // Bind item events
-    document.getElementById('menu-record').onclick = () => {
-        openAudioRecorder(slide.id);
+    document.getElementById('menu-record-action').onclick = () => {
+        if (hasAudio) {
+            deleteAudio(slide.id, slide.audio_url);
+        } else {
+            openAudioRecorder(slide.id);
+        }
         menu.remove();
     };
 
-    document.getElementById('menu-delete').onclick = () => {
-        if (confirm('Delete this slide?')) {
-            supabaseClient.from('slides').delete().eq('id', slide.id).then(() => {
-                location.reload(); // Simple refresh for now
-            });
-        }
+    document.getElementById('menu-delete-slide').onclick = () => {
+        deleteSlide(slide.id);
         menu.remove();
     };
 
     // Close on click elsewhere
     document.addEventListener('click', () => menu.remove(), { once: true });
+}
+
+async function deleteSlide(slideId) {
+    if (!confirm('Are you sure you want to delete this slide?')) return;
+
+    try {
+        const { error } = await supabaseClient.from('slides').delete().eq('id', slideId);
+        if (error) throw error;
+
+        // Immediate UI Update
+        const item = document.querySelector(`.gallery-item[data-id="${slideId}"]`);
+        if (item) item.remove();
+
+        // Re-number badges
+        const items = [...document.querySelectorAll('.gallery-item')];
+        items.forEach((item, index) => {
+            const badge = item.querySelector('.slide-badge');
+            if (badge) badge.textContent = index + 1;
+        });
+
+        console.log('[Gallery] Slide deleted and UI updated.');
+    } catch (err) {
+        alert('Failed to delete slide: ' + err.message);
+    }
 }
 
 // --- Comment Moderation Logic ---
