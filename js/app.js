@@ -73,6 +73,11 @@ async function initAuth() {
         console.log(`[Auth] State changed: ${event}`, currentUser?.email);
         updateAdminNavUI();
 
+        // If logged in from the portal page, redirect to dashboard
+        if (event === 'SIGNED_IN' && window.location.hash === `#${ADMIN_ROUTE_SECRET}`) {
+            window.location.hash = '#admin/posts';
+        }
+
         // If logged out from an admin page, redirect home
         if (event === 'SIGNED_OUT' && window.location.hash.startsWith('#admin/')) {
             window.location.hash = '#home';
@@ -94,7 +99,8 @@ async function initAuth() {
                 alert(`Login failed: ${error.message}`);
             } else {
                 console.log('[Auth] Login successful');
-                window.location.hash = `#${ADMIN_ROUTE_SECRET}`;
+                // Redirect directly to the dashboard
+                window.location.hash = '#admin/posts';
             }
         });
     }
@@ -605,11 +611,11 @@ function renderUploadPreview(files) {
 // --- Email Broadcast Logic ---
 async function sendBroadcast(postId) {
     if (!confirm('Send this post as an email broadcast to all subscribers?')) return;
-    
+
     const { data: post } = await supabaseClient.from('posts').select('*').eq('id', postId).single();
-    
+
     console.log('[Broadcast] Triggering email for: ' + post.title);
-    
+
     try {
         const { data, error } = await supabaseClient.functions.invoke('send-batch-emails', {
             body: {
@@ -618,7 +624,7 @@ async function sendBroadcast(postId) {
                 content: post.description || ''
             }
         });
-        
+
         if (error) throw error;
         alert('Broadcast sent successfully to subscribers!');
     } catch (err) {
@@ -630,9 +636,9 @@ async function sendBroadcast(postId) {
 // --- Cleanup & Maintenance ---
 async function deletePost(id) {
     if (!confirm('Are you sure you want to delete this post? This will remove all slides and audio from storage.')) return;
-    
+
     const { error } = await supabaseClient.from('posts').delete().eq('id', id);
-    
+
     if (error) alert('Error: ' + error.message);
     else loadAdminPosts();
 }
