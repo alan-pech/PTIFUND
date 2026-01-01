@@ -254,13 +254,18 @@ textarea {
     border-radius: 12px;
     overflow: hidden;
     box-shadow: var(--shadow);
-    cursor: grab;
+    cursor: pointer;
     position: relative;
     transition: transform 0.2s, box-shadow 0.2s;
     aspect-ratio: 16 / 9;
 }
 
-.gallery-item:active {
+.gallery-item:hover {
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+}
+
+.gallery-item.dragging {
+    opacity: 0.5;
     cursor: grabbing;
 }
 
@@ -306,11 +311,16 @@ textarea {
     font-size: 0.8rem;
 }
 
-/* Context Menu improvements */
+/* Context Menu */
 .context-menu {
+    position: absolute;
+    background: white;
     border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+    padding: 0.5rem 0;
+    z-index: 10000;
+    min-width: 180px;
     overflow: hidden;
-    border: none;
 }
 
 .menu-item {
@@ -318,6 +328,9 @@ textarea {
     cursor: pointer;
     transition: background 0.2s;
     font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
 .menu-item:hover {

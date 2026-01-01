@@ -472,7 +472,7 @@ function showContextMenu(x, y, slide) {
 
     menu.innerHTML = `
         <div class="menu-item" id="menu-record">🔴 Record Audio</div>
-        <div class="menu-item delete" id="menu-delete">🗑️ Delete Image</div>
+        <div class="menu-item delete" id="menu-delete">🗑️ Delete Slide</div>
     `;
 
     document.body.appendChild(menu);
@@ -614,17 +614,16 @@ async function renderAdminEditGallery(container, postId) {
         <p class="help-text">Drag and drop thumbnails to re-order. Right-click for options.</p>
         <div id="gallery-container" class="slides-gallery">
             ${(slides || []).map(slide => `
-                <div class="gallery-item" draggable="true" data-id="${slide.id}">
-                    <img src="${slide.image_url}" loading="lazy">
-                    <div class="slide-badge">${slide.order_index + 1}</div>
-                    ${slide.audio_url ? '<div class="audio-icon">♪</div>' : ''}
+                <div class="gallery-item" draggable="true" data-id="${slide.id}" data-image="${slide.image_url}" data-audio="${slide.audio_url || ''}">
+                    <img src="${slide.image_url}" loading="lazy" style="pointer-events: none; user-select: none;">
+                    <div class="slide-badge" style="pointer-events: none;">${slide.order_index + 1}</div>
+                    ${slide.audio_url ? '<div class="audio-icon" style="pointer-events: none;">♪</div>' : ''}
                 </div>
             `).join('')}
         </div>
     `;
 
     initDragAndDrop(postId);
-    attachAdminControlsToGallery(slides);
 }
 
 function initDragAndDrop(postId) {
@@ -633,10 +632,12 @@ function initDragAndDrop(postId) {
 
     gallery.addEventListener('dragstart', (e) => {
         draggedItem = e.target.closest('.gallery-item');
+        if (!draggedItem) return;
         draggedItem.classList.add('dragging');
     });
 
     gallery.addEventListener('dragend', (e) => {
+        if (!draggedItem) return;
         draggedItem.classList.remove('dragging');
         updateSlideOrder(postId);
     });
@@ -648,6 +649,20 @@ function initDragAndDrop(postId) {
             gallery.appendChild(draggedItem);
         } else {
             gallery.insertBefore(draggedItem, afterElement);
+        }
+    });
+
+    // Event Delegation for Context Menu
+    gallery.addEventListener('contextmenu', (e) => {
+        const item = e.target.closest('.gallery-item');
+        if (item) {
+            e.preventDefault();
+            const slide = {
+                id: item.dataset.id,
+                image_url: item.dataset.image,
+                audio_url: item.dataset.audio || null
+            };
+            showContextMenu(e.pageX, e.pageY, slide);
         }
     });
 }
@@ -688,16 +703,6 @@ async function updateSlideOrder(postId) {
     renderAdminEditGallery(document.getElementById('admin-content'), postId);
 }
 
-function attachAdminControlsToGallery(slides) {
-    const items = document.querySelectorAll('.gallery-item');
-    items.forEach((item, index) => {
-        const slide = slides.find(s => s.id === item.dataset.id);
-        item.oncontextmenu = (e) => {
-            e.preventDefault();
-            showContextMenu(e.pageX, e.pageY, slide);
-        };
-    });
-}
 
 function renderUploadPreview(files) {
     const preview = document.getElementById('upload-preview');
