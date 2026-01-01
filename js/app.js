@@ -68,7 +68,7 @@ async function initAuth() {
     updateAdminNavUI();
 
     // Listen for auth state changes
-    supabase.auth.onAuthStateChange((event, session) => {
+    supabaseClient.auth.onAuthStateChange((event, session) => {
         currentUser = session?.user || null;
         console.log(`[Auth] State changed: ${event}`, currentUser?.email);
         updateAdminNavUI();
@@ -88,7 +88,7 @@ async function initAuth() {
             const password = document.getElementById('login-password').value;
 
             console.log(`[Auth] Attempting login for ${email}`);
-            const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+            const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
 
             if (error) {
                 alert(`Login failed: ${error.message}`);
@@ -103,7 +103,7 @@ async function initAuth() {
     const btnLogout = document.getElementById('btn-logout');
     if (btnLogout) {
         btnLogout.addEventListener('click', async () => {
-            await supabase.auth.signOut();
+            await supabaseClient.auth.signOut();
             window.location.hash = '#home';
         });
     }
@@ -164,7 +164,7 @@ function updateVersionDisplay() {
 
 // --- Consumer Content Loading ---
 async function loadLatestPost() {
-    const { data: posts, error } = await supabase
+    const { data: posts, error } = await supabaseClient
         .from('posts')
         .select('*')
         .order('created_at', { ascending: false })
@@ -180,7 +180,7 @@ async function loadLatestPost() {
 
 async function loadArchive() {
     const grid = document.getElementById('archive-grid');
-    const { data: posts, error } = await supabase
+    const { data: posts, error } = await supabaseClient
         .from('posts')
         .select('*')
         .order('created_at', { ascending: false });
@@ -203,8 +203,8 @@ async function loadPostDetails(id) {
     content.innerHTML = '<div class="loader">Loading slides...</div>';
 
     // Fetch post and slides
-    const { data: post } = await supabase.from('posts').select('*').eq('id', id).single();
-    const { data: slides } = await supabase.from('slides').select('*').eq('post_id', id).order('order_index');
+    const { data: post } = await supabaseClient.from('posts').select('*').eq('id', id).single();
+    const { data: slides } = await supabaseClient.from('slides').select('*').eq('post_id', id).order('order_index');
 
     if (!post) return;
 
@@ -316,7 +316,7 @@ async function createPostWithSlides(title, files) {
     const slug = title.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '');
 
     // 1. Create Post Entry
-    const { data: post, error: postErr } = await supabase
+    const { data: post, error: postErr } = await supabaseClient
         .from('posts')
         .insert([{ title, slug }])
         .select()
@@ -334,15 +334,15 @@ async function createPostWithSlides(title, files) {
         const file = files[i];
         const filePath = `${post.id}/slide_${i}_${Date.now()}.png`;
 
-        const { error: uploadErr } = await supabase.storage
+        const { error: uploadErr } = await supabaseClient.storage
             .from('post-assets')
             .upload(filePath, file);
 
         if (uploadErr) throw uploadErr;
 
-        const { data: { publicUrl } } = supabase.storage.from('post-assets').getPublicUrl(filePath);
+        const { data: { publicUrl } } = supabaseClient.storage.from('post-assets').getPublicUrl(filePath);
 
-        await supabase.from('slides').insert([{
+        await supabaseClient.from('slides').insert([{
             post_id: post.id,
             image_url: publicUrl,
             order_index: i
@@ -379,7 +379,7 @@ async function stopRecording() {
 
 async function uploadAudio(slideId, blob) {
     const filePath = `audio/${slideId}_${Date.now()}.mp3`;
-    const { error: uploadErr } = await supabase.storage
+    const { error: uploadErr } = await supabaseClient.storage
         .from('post-assets')
         .upload(filePath, blob);
 
@@ -388,9 +388,9 @@ async function uploadAudio(slideId, blob) {
         return;
     }
 
-    const { data: { publicUrl } } = supabase.storage.from('post-assets').getPublicUrl(filePath);
+    const { data: { publicUrl } } = supabaseClient.storage.from('post-assets').getPublicUrl(filePath);
 
-    const { error: dbErr } = await supabase
+    const { error: dbErr } = await supabaseClient
         .from('slides')
         .update({ audio_url: publicUrl })
         .eq('id', slideId);
@@ -402,7 +402,7 @@ async function uploadAudio(slideId, blob) {
 // --- Subscriber Management Logic ---
 async function loadAdminSubscribers() {
     const tbody = document.getElementById('subscribers-tbody');
-    const { data: subs, error } = await supabase.from('subscribers').select('*').order('created_at', { ascending: false });
+    const { data: subs, error } = await supabaseClient.from('subscribers').select('*').order('created_at', { ascending: false });
 
     if (error) {
         tbody.innerHTML = `<tr><td colspan="4">Error: ${error.message}</td></tr>`;
@@ -424,7 +424,7 @@ async function loadAdminSubscribers() {
         const name = prompt('Enter Supporter Name:');
         const email = prompt('Enter Supporter Email:');
         if (name && email) {
-            await supabase.from('subscribers').insert([{ name, email }]);
+            await supabaseClient.from('subscribers').insert([{ name, email }]);
             loadAdminSubscribers();
         }
     };
@@ -432,7 +432,7 @@ async function loadAdminSubscribers() {
 
 async function deleteSubscriber(id) {
     if (confirm('Are you sure?')) {
-        await supabase.from('subscribers').delete().eq('id', id);
+        await supabaseClient.from('subscribers').delete().eq('id', id);
         loadAdminSubscribers();
     }
 }
@@ -479,7 +479,7 @@ function showContextMenu(x, y, slide) {
 
     document.getElementById('menu-delete').onclick = () => {
         if (confirm('Delete this slide?')) {
-            supabase.from('slides').delete().eq('id', slide.id).then(() => {
+            supabaseClient.from('slides').delete().eq('id', slide.id).then(() => {
                 location.reload(); // Simple refresh for now
             });
         }
@@ -493,7 +493,7 @@ function showContextMenu(x, y, slide) {
 // --- Comment Moderation Logic ---
 async function loadAdminComments() {
     const queue = document.getElementById('comments-queue');
-    const { data: comments, error } = await supabase
+    const { data: comments, error } = await supabaseClient
         .from('comments')
         .select('*, posts(title)')
         .eq('status', 'pending');
@@ -523,7 +523,7 @@ async function loadAdminComments() {
 }
 
 async function moderateComment(id, status) {
-    const { error } = await supabase
+    const { error } = await supabaseClient
         .from('comments')
         .update({ status })
         .eq('id', id);
@@ -534,7 +534,7 @@ async function moderateComment(id, status) {
 
 async function loadComments(postId) {
     const list = document.getElementById('comments-list');
-    const { data: comments } = await supabase
+    const { data: comments } = await supabaseClient
         .from('comments')
         .select('*')
         .eq('post_id', postId)
@@ -555,7 +555,7 @@ async function loadComments(postId) {
         const author = document.getElementById('comment-author').value;
         const text = document.getElementById('comment-text').value;
 
-        await supabase.from('comments').insert([{
+        await supabaseClient.from('comments').insert([{
             post_id: postId,
             author_name: author,
             comment_text: text
@@ -567,7 +567,7 @@ async function loadComments(postId) {
 }
 async function loadAdminPosts() {
     const list = document.getElementById('admin-posts-list');
-    const { data: posts, error } = await supabase.from('posts').select('*').order('created_at', { ascending: false });
+    const { data: posts, error } = await supabaseClient.from('posts').select('*').order('created_at', { ascending: false });
 
     if (error) {
         list.innerHTML = `<p class="error">Error loading posts: ${error.message}</p>`;
@@ -606,12 +606,12 @@ function renderUploadPreview(files) {
 async function sendBroadcast(postId) {
     if (!confirm('Send this post as an email broadcast to all subscribers?')) return;
     
-    const { data: post } = await supabase.from('posts').select('*').eq('id', postId).single();
+    const { data: post } = await supabaseClient.from('posts').select('*').eq('id', postId).single();
     
     console.log('[Broadcast] Triggering email for: ' + post.title);
     
     try {
-        const { data, error } = await supabase.functions.invoke('send-batch-emails', {
+        const { data, error } = await supabaseClient.functions.invoke('send-batch-emails', {
             body: {
                 postId: post.id,
                 title: post.title,
@@ -631,7 +631,7 @@ async function sendBroadcast(postId) {
 async function deletePost(id) {
     if (!confirm('Are you sure you want to delete this post? This will remove all slides and audio from storage.')) return;
     
-    const { error } = await supabase.from('posts').delete().eq('id', id);
+    const { error } = await supabaseClient.from('posts').delete().eq('id', id);
     
     if (error) alert('Error: ' + error.message);
     else loadAdminPosts();
