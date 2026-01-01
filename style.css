@@ -241,16 +241,76 @@ textarea {
     border-radius: 4px;
 }
 
-/* Context Menu */
-.context-menu {
-    position: absolute;
+/* Gallery & Drag and Drop */
+.slides-gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1.5rem;
+    padding: 1.5rem 0;
+}
+
+.gallery-item {
     background: white;
-    border-radius: 8px;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-    padding: 0.5rem 0;
-    z-index: 3000;
-    min-width: 180px;
-    border: 1px solid #eee;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+    cursor: grab;
+    position: relative;
+    transition: transform 0.2s, box-shadow 0.2s;
+    aspect-ratio: 16 / 9;
+}
+
+.gallery-item:active {
+    cursor: grabbing;
+}
+
+.gallery-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.gallery-item.dragging {
+    opacity: 0.5;
+    transform: scale(0.95);
+}
+
+.gallery-item.drag-over {
+    border: 2px dashed var(--color-orange);
+}
+
+.gallery-item .slide-badge {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: rgba(0, 0, 0, 0.6);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+}
+
+.gallery-item .audio-icon {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    background: var(--color-green);
+    color: white;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+}
+
+/* Context Menu improvements */
+.context-menu {
+    border-radius: 12px;
+    overflow: hidden;
+    border: none;
 }
 
 .menu-item {

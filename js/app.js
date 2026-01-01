@@ -151,6 +151,10 @@ function handleAdminRoutes(hash) {
         case 'posts':
             renderAdminPosts(adminContent);
             break;
+        case 'edit':
+            const postId = hash.split('/')[2];
+            renderAdminEditGallery(adminContent, postId);
+            break;
         case 'subscribers':
             renderAdminSubscribers(adminContent);
             break;
@@ -590,12 +594,109 @@ async function loadAdminPosts() {
             <span class="post-title">${post.title}</span>
             <span class="post-date">${new Date(post.created_at).toLocaleDateString()}</span>
             <div class="actions">
-                <button class="btn btn-text" onclick="editPost('${post.id}')">Edit</button>
+                <button class="btn btn-text" onclick="window.location.hash='#admin/edit/${post.id}'">Edit Gallery</button>
                 <button class="btn btn-text" onclick="sendBroadcast('${post.id}')">Email</button>
                 <button class="btn btn-text delete" onclick="deletePost('${post.id}')">Delete</button>
             </div>
         </div>
     `).join('');
+}
+
+async function renderAdminEditGallery(container, postId) {
+    const { data: post } = await supabaseClient.from('posts').select('*').eq('id', postId).single();
+    const { data: slides } = await supabaseClient.from('slides').select('*').eq('post_id', postId).order('order_index');
+
+    container.innerHTML = `
+        <div class="admin-header">
+            <h2>Editing: ${post.title}</h2>
+            <button class="btn btn-text" onclick="window.location.hash='#admin/posts'">← Back to Posts</button>
+        </div>
+        <p class="help-text">Drag and drop thumbnails to re-order. Right-click for options.</p>
+        <div id="gallery-container" class="slides-gallery">
+            ${(slides || []).map(slide => `
+                <div class="gallery-item" draggable="true" data-id="${slide.id}">
+                    <img src="${slide.image_url}" loading="lazy">
+                    <div class="slide-badge">${slide.order_index + 1}</div>
+                    ${slide.audio_url ? '<div class="audio-icon">♪</div>' : ''}
+                </div>
+            `).join('')}
+        </div>
+    `;
+
+    initDragAndDrop(postId);
+    attachAdminControlsToGallery(slides);
+}
+
+function initDragAndDrop(postId) {
+    const gallery = document.getElementById('gallery-container');
+    let draggedItem = null;
+
+    gallery.addEventListener('dragstart', (e) => {
+        draggedItem = e.target.closest('.gallery-item');
+        draggedItem.classList.add('dragging');
+    });
+
+    gallery.addEventListener('dragend', (e) => {
+        draggedItem.classList.remove('dragging');
+        updateSlideOrder(postId);
+    });
+
+    gallery.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        const afterElement = getDragAfterElement(gallery, e.clientX, e.clientY);
+        if (afterElement == null) {
+            gallery.appendChild(draggedItem);
+        } else {
+            gallery.insertBefore(draggedItem, afterElement);
+        }
+    });
+}
+
+function getDragAfterElement(container, x, y) {
+    const draggableElements = [...container.querySelectorAll('.gallery-item:not(.dragging)')];
+
+    return draggableElements.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const centerX = box.left + box.width / 2;
+        const centerY = box.top + box.height / 2;
+        const distance = Math.sqrt(Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2));
+
+        if (distance < closest.offset) {
+            return { offset: distance, element: child };
+        } else {
+            return closest;
+        }
+    }, { offset: Number.POSITIVE_INFINITY }).element;
+}
+
+async function updateSlideOrder(postId) {
+    const items = [...document.querySelectorAll('.gallery-item')];
+    console.log('[Gallery] Updating order for ' + items.length + ' slides...');
+
+    const updates = items.map((item, index) => ({
+        id: item.dataset.id,
+        order_index: index
+    }));
+
+    // Perform individual updates (Supabase doesn't support bulk update with different keys in one go easily without RPC)
+    for (const update of updates) {
+        await supabaseClient.from('slides').update({ order_index: update.order_index }).eq('id', update.id);
+    }
+
+    // Refresh UI to show new badges
+    const { data: slides } = await supabaseClient.from('slides').select('*').eq('post_id', postId).order('order_index');
+    renderAdminEditGallery(document.getElementById('admin-content'), postId);
+}
+
+function attachAdminControlsToGallery(slides) {
+    const items = document.querySelectorAll('.gallery-item');
+    items.forEach((item, index) => {
+        const slide = slides.find(s => s.id === item.dataset.id);
+        item.oncontextmenu = (e) => {
+            e.preventDefault();
+            showContextMenu(e.pageX, e.pageY, slide);
+        };
+    });
 }
 
 function renderUploadPreview(files) {
@@ -644,7 +745,3 @@ async function deletePost(id) {
 }
 
 // --- Post Management ---
-function editPost(id) {
-    // Navigate to post viewer which has admin controls enabled if currentUser exists
-    window.location.hash = '#post/' + id;
-}
