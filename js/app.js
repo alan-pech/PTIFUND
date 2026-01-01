@@ -1,0 +1,638 @@
+/**
+ * Project Timothy Fund Uganda - Blog App
+ * Version: v1.0.001
+ * Description: Core application logic for SPA routing, Supabase integration, 
+ * audio recording, and admin/consumer interfaces.
+ */
+
+// --- Constants & State ---
+const APP_VERSION = 'v1.0.001';
+const ADMIN_ROUTE_SECRET = 'admin-portal'; // Accessible via index.html#admin-portal
+
+let currentUser = null;
+let currentView = 'home';
+
+// --- Initialization ---
+document.addEventListener('DOMContentLoaded', () => {
+    console.log(`[${new Date().toISOString()}] App initializing version ${APP_VERSION}`);
+    initRouting();
+    initAuth();
+    updateVersionDisplay();
+});
+
+// --- Routing ---
+function initRouting() {
+    window.addEventListener('hashchange', handleRouteChange);
+    handleRouteChange(); // Handle initial load
+}
+
+function handleRouteChange() {
+    const hash = window.location.hash.substring(1) || 'home';
+    console.log(`[Navigation] Hash changed to: ${hash}`);
+
+    // Route logic
+    if (hash === 'home') {
+        showView('home-view');
+        loadLatestPost();
+    } else if (hash === 'archive') {
+        showView('archive-view');
+        loadArchive();
+    } else if (hash.startsWith('post/')) {
+        const postId = hash.split('/')[1];
+        showView('post-view');
+        loadPostDetails(postId);
+    } else if (hash === ADMIN_ROUTE_SECRET) {
+        handleAdminAccess();
+    } else if (hash.startsWith('admin/')) {
+        checkAdminAuth(() => handleAdminRoutes(hash));
+    } else {
+        console.warn(`[Routing] Unrecognized route: ${hash}. Redircting home.`);
+        window.location.hash = '#home';
+    }
+}
+
+function showView(viewId) {
+    document.querySelectorAll('.view').forEach(view => {
+        view.classList.add('hidden');
+    });
+    const targetView = document.getElementById(viewId);
+    if (targetView) {
+        targetView.classList.remove('hidden');
+        currentView = viewId;
+    }
+}
+
+// --- Authentication ---
+async function initAuth() {
+    // Sync setup
+    updateAdminNavUI();
+
+    // Listen for auth state changes
+    supabase.auth.onAuthStateChange((event, session) => {
+        currentUser = session?.user || null;
+        console.log(`[Auth] State changed: ${event}`, currentUser?.email);
+        updateAdminNavUI();
+
+        // If logged out from an admin page, redirect home
+        if (event === 'SIGNED_OUT' && window.location.hash.startsWith('#admin/')) {
+            window.location.hash = '#home';
+        }
+    });
+
+    // Handle Login Form
+    const loginForm = document.getElementById('login-form');
+    if (loginForm) {
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+
+            console.log(`[Auth] Attempting login for ${email}`);
+            const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+            if (error) {
+                alert(`Login failed: ${error.message}`);
+            } else {
+                console.log('[Auth] Login successful');
+                window.location.hash = `#${ADMIN_ROUTE_SECRET}`;
+            }
+        });
+    }
+
+    // Handle Logout
+    const btnLogout = document.getElementById('btn-logout');
+    if (btnLogout) {
+        btnLogout.addEventListener('click', async () => {
+            await supabase.auth.signOut();
+            window.location.hash = '#home';
+        });
+    }
+}
+
+function handleAdminAccess() {
+    if (currentUser) {
+        window.location.hash = '#admin/posts';
+    } else {
+        showView('admin-login-view');
+    }
+}
+
+function checkAdminAuth(callback) {
+    if (!currentUser) {
+        console.warn('[Auth] Attempted admin access without session.');
+        window.location.hash = `#${ADMIN_ROUTE_SECRET}`;
+    } else {
+        callback();
+    }
+}
+
+function updateAdminNavUI() {
+    const container = document.getElementById('admin-link-container');
+    if (currentUser) {
+        container.innerHTML = `<a href="#admin/posts" class="nav-link admin-active">Admin Dashboard</a>`;
+    } else {
+        container.innerHTML = '';
+    }
+}
+
+// --- Admin Features ---
+function handleAdminRoutes(hash) {
+    showView('admin-dashboard-view');
+    const subRoute = hash.split('/')[1];
+    const adminContent = document.getElementById('admin-content');
+
+    switch (subRoute) {
+        case 'posts':
+            renderAdminPosts(adminContent);
+            break;
+        case 'subscribers':
+            renderAdminSubscribers(adminContent);
+            break;
+        case 'comments':
+            renderAdminComments(adminContent);
+            break;
+        default:
+            window.location.hash = '#admin/posts';
+    }
+}
+
+// --- UI Helpers ---
+function updateVersionDisplay() {
+    const displays = document.querySelectorAll('.version');
+    displays.forEach(el => el.textContent = APP_VERSION);
+}
+
+// --- Consumer Content Loading ---
+async function loadLatestPost() {
+    const { data: posts, error } = await supabase
+        .from('posts')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+    if (error || !posts.length) {
+        document.getElementById('latest-post-container').innerHTML = '<p>No updates found.</p>';
+        return;
+    }
+
+    loadPostDetails(posts[0].id);
+}
+
+async function loadArchive() {
+    const grid = document.getElementById('archive-grid');
+    const { data: posts, error } = await supabase
+        .from('posts')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        grid.innerHTML = `<p class="error">Error: ${error.message}</p>`;
+        return;
+    }
+
+    grid.innerHTML = posts.map(post => `
+        <div class="archive-card" onclick="window.location.hash = '#post/${post.id}'">
+            <h4>${post.title}</h4>
+            <p>${new Date(post.created_at).toLocaleDateString()}</p>
+        </div>
+    `).join('');
+}
+
+async function loadPostDetails(id) {
+    const content = document.getElementById('post-content');
+    content.innerHTML = '<div class="loader">Loading slides...</div>';
+
+    // Fetch post and slides
+    const { data: post } = await supabase.from('posts').select('*').eq('id', id).single();
+    const { data: slides } = await supabase.from('slides').select('*').eq('post_id', id).order('order_index');
+
+    if (!post) return;
+
+    content.innerHTML = `
+        <article class="post-detail">
+            <h2>${post.title}</h2>
+            <div class="slides-stack">
+                ${slides.map(slide => `
+                    <div class="slide-card">
+                        <img src="${slide.image_url}" class="slide-image" loading="lazy">
+                        ${slide.audio_url ? `
+                            <div class="audio-wrapper">
+                                <audio controls src="${slide.audio_url}"></audio>
+                            </div>
+                        ` : ''}
+                    </div>
+                `).join('')}
+            </div>
+        </article>
+    `;
+
+    loadComments(id);
+
+    // If admin is viewing, allow editing/audio tagging
+    if (currentUser) {
+        attachAdminControlsToSlides(slides);
+    }
+}
+
+// --- Admin Features ---
+async function renderAdminPosts(container) {
+    container.innerHTML = `
+        <div class="admin-header">
+            <h2>Manage Blog Posts</h2>
+            <button id="btn-new-post" class="btn btn-primary">+ New Post</button>
+        </div>
+        <div id="admin-posts-list" class="admin-list">
+            <div class="loader">Loading posts...</div>
+        </div>
+        
+        <!-- New Post Modal (Hidden) -->
+        <div id="modal-new-post" class="modal hidden">
+            <div class="modal-content">
+                <h3>Create New Post</h3>
+                <input type="text" id="new-post-title" placeholder="Post Title (e.g. June 2026 Update)">
+                <div class="upload-zone" id="upload-zone">
+                    <p>Click to select folder of PNG images</p>
+                    <input type="file" id="folder-input" webkitdirectory directory multiple hidden>
+                </div>
+                <div id="upload-preview" class="upload-preview grid"></div>
+                <div class="modal-actions">
+                    <button class="btn btn-text" id="btn-cancel-post">Cancel</button>
+                    <button class="btn btn-primary" id="btn-save-post">Create Post & Upload</button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Bind events
+    document.getElementById('btn-new-post').onclick = () => {
+        document.getElementById('modal-new-post').classList.remove('hidden');
+    };
+    document.getElementById('btn-cancel-post').onclick = () => {
+        document.getElementById('modal-new-post').classList.add('hidden');
+    };
+
+    // Folder selection
+    const uploadZone = document.getElementById('upload-zone');
+    const folderInput = document.getElementById('folder-input');
+    const btnSave = document.getElementById('btn-save-post');
+    const titleInput = document.getElementById('new-post-title');
+
+    uploadZone.onclick = () => folderInput.click();
+
+    folderInput.onchange = (e) => {
+        const files = Array.from(e.target.files).filter(f => f.type === 'image/png');
+        renderUploadPreview(files);
+    };
+
+    btnSave.onclick = async () => {
+        const title = titleInput.value;
+        const files = Array.from(folderInput.files).filter(f => f.type === 'image/png');
+
+        if (!title || files.length === 0) {
+            alert('Please provide a title and select a folder with PNGs.');
+            return;
+        }
+
+        btnSave.disabled = true;
+        btnSave.textContent = 'Uploading...';
+
+        try {
+            await createPostWithSlides(title, files);
+            document.getElementById('modal-new-post').classList.add('hidden');
+            loadAdminPosts();
+        } catch (err) {
+            alert(`Upload failed: ${err.message}`);
+        } finally {
+            btnSave.disabled = false;
+            btnSave.textContent = 'Create Post & Upload';
+        }
+    };
+
+    loadAdminPosts();
+}
+
+// --- Bulk Upload Logic ---
+async function createPostWithSlides(title, files) {
+    const slug = title.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '');
+
+    // 1. Create Post Entry
+    const { data: post, error: postErr } = await supabase
+        .from('posts')
+        .insert([{ title, slug }])
+        .select()
+        .single();
+
+    if (postErr) throw postErr;
+
+    // 2. Upload Images and Create Slides
+    console.log(`[Upload] Starting upload for ${files.length} images...`);
+
+    // Sort files by name to maintain order
+    files.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+
+    for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const filePath = `${post.id}/slide_${i}_${Date.now()}.png`;
+
+        const { error: uploadErr } = await supabase.storage
+            .from('post-assets')
+            .upload(filePath, file);
+
+        if (uploadErr) throw uploadErr;
+
+        const { data: { publicUrl } } = supabase.storage.from('post-assets').getPublicUrl(filePath);
+
+        await supabase.from('slides').insert([{
+            post_id: post.id,
+            image_url: publicUrl,
+            order_index: i
+        }]);
+
+        console.log(`[Upload] Slide ${i + 1}/${files.length} uploaded.`);
+    }
+}
+
+// --- Audio Recording Logic ---
+let mediaRecorder;
+let audioChunks = [];
+
+async function startRecording(slideId) {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaRecorder = new MediaRecorder(stream);
+    audioChunks = [];
+
+    mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
+    mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunks, { type: 'audio/mp3' });
+        await uploadAudio(slideId, audioBlob);
+    };
+
+    mediaRecorder.start();
+    console.log(`[Audio] Recording started for slide ${slideId}`);
+}
+
+async function stopRecording() {
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+    }
+}
+
+async function uploadAudio(slideId, blob) {
+    const filePath = `audio/${slideId}_${Date.now()}.mp3`;
+    const { error: uploadErr } = await supabase.storage
+        .from('post-assets')
+        .upload(filePath, blob);
+
+    if (uploadErr) {
+        console.error('[Audio] Upload failed:', uploadErr);
+        return;
+    }
+
+    const { data: { publicUrl } } = supabase.storage.from('post-assets').getPublicUrl(filePath);
+
+    const { error: dbErr } = await supabase
+        .from('slides')
+        .update({ audio_url: publicUrl })
+        .eq('id', slideId);
+
+    if (dbErr) console.error('[Audio] DB update failed:', dbErr);
+    else console.log('[Audio] Successfully tagged to slide.');
+}
+
+// --- Subscriber Management Logic ---
+async function loadAdminSubscribers() {
+    const tbody = document.getElementById('subscribers-tbody');
+    const { data: subs, error } = await supabase.from('subscribers').select('*').order('created_at', { ascending: false });
+
+    if (error) {
+        tbody.innerHTML = `<tr><td colspan="4">Error: ${error.message}</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = subs.map(sub => `
+        <tr>
+            <td>${sub.name}</td>
+            <td>${sub.email}</td>
+            <td>${new Date(sub.created_at).toLocaleDateString()}</td>
+            <td>
+                <button class="btn btn-text delete" onclick="deleteSubscriber('${sub.id}')">Delete</button>
+            </td>
+        </tr>
+    `).join('');
+
+    document.getElementById('btn-new-sub').onclick = async () => {
+        const name = prompt('Enter Supporter Name:');
+        const email = prompt('Enter Supporter Email:');
+        if (name && email) {
+            await supabase.from('subscribers').insert([{ name, email }]);
+            loadAdminSubscribers();
+        }
+    };
+}
+
+async function deleteSubscriber(id) {
+    if (confirm('Are you sure?')) {
+        await supabase.from('subscribers').delete().eq('id', id);
+        loadAdminSubscribers();
+    }
+}
+
+// --- Interaction Branding: Context Menu ---
+function attachAdminControlsToSlides(slides) {
+    const slideCards = document.querySelectorAll('.slide-card');
+    slideCards.forEach((card, index) => {
+        const slide = slides[index];
+        card.oncontextmenu = (e) => {
+            e.preventDefault();
+            showContextMenu(e.pageX, e.pageY, slide);
+        };
+    });
+}
+
+function showContextMenu(x, y, slide) {
+    // Remove existing menu
+    const existing = document.getElementById('custom-context-menu');
+    if (existing) existing.remove();
+
+    const menu = document.createElement('div');
+    menu.id = 'custom-context-menu';
+    menu.className = 'context-menu';
+    menu.style.top = `${y}px`;
+    menu.style.left = `${x}px`;
+
+    menu.innerHTML = `
+        <div class="menu-item" id="menu-record">🔴 Record Audio</div>
+        <div class="menu-item delete" id="menu-delete">🗑️ Delete Image</div>
+    `;
+
+    document.body.appendChild(menu);
+
+    // Bind item events
+    document.getElementById('menu-record').onclick = () => {
+        startRecording(slide.id);
+        menu.innerHTML = '<div class="menu-item" id="menu-stop">⏹️ Stop Recording</div>';
+        document.getElementById('menu-stop').onclick = () => {
+            stopRecording();
+            menu.remove();
+        };
+    };
+
+    document.getElementById('menu-delete').onclick = () => {
+        if (confirm('Delete this slide?')) {
+            supabase.from('slides').delete().eq('id', slide.id).then(() => {
+                location.reload(); // Simple refresh for now
+            });
+        }
+        menu.remove();
+    };
+
+    // Close on click elsewhere
+    document.addEventListener('click', () => menu.remove(), { once: true });
+}
+
+// --- Comment Moderation Logic ---
+async function loadAdminComments() {
+    const queue = document.getElementById('comments-queue');
+    const { data: comments, error } = await supabase
+        .from('comments')
+        .select('*, posts(title)')
+        .eq('status', 'pending');
+
+    if (error) {
+        queue.innerHTML = `<p class="error">Error: ${error.message}</p>`;
+        return;
+    }
+
+    if (comments.length === 0) {
+        queue.innerHTML = '<p>No pending comments.</p>';
+        return;
+    }
+
+    queue.innerHTML = comments.map(c => `
+        <div class="comment-item">
+            <div class="comment-meta">
+                <strong>${c.author_name}</strong> on <em>${c.posts.title}</em>
+            </div>
+            <p class="comment-body">${c.comment_text}</p>
+            <div class="actions">
+                <button class="btn btn-primary" onclick="moderateComment('${c.id}', 'approved')">Approve</button>
+                <button class="btn btn-text delete" onclick="moderateComment('${c.id}', 'deleted')">Delete</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function moderateComment(id, status) {
+    const { error } = await supabase
+        .from('comments')
+        .update({ status })
+        .eq('id', id);
+
+    if (error) alert(`Error: ${error.message}`);
+    else loadAdminComments();
+}
+
+async function loadComments(postId) {
+    const list = document.getElementById('comments-list');
+    const { data: comments } = await supabase
+        .from('comments')
+        .select('*')
+        .eq('post_id', postId)
+        .eq('status', 'approved')
+        .order('created_at', { ascending: true });
+
+    list.innerHTML = (comments || []).map(c => `
+        <div class="user-comment">
+            <strong>${c.author_name}</strong>
+            <p>${c.comment_text}</p>
+        </div>
+    `).join('');
+
+    // Handle submission
+    const form = document.getElementById('comment-form');
+    form.onsubmit = async (e) => {
+        e.preventDefault();
+        const author = document.getElementById('comment-author').value;
+        const text = document.getElementById('comment-text').value;
+
+        await supabase.from('comments').insert([{
+            post_id: postId,
+            author_name: author,
+            comment_text: text
+        }]);
+
+        form.reset();
+        alert('Your comment has been submitted for moderation.');
+    };
+}
+async function loadAdminPosts() {
+    const list = document.getElementById('admin-posts-list');
+    const { data: posts, error } = await supabase.from('posts').select('*').order('created_at', { ascending: false });
+
+    if (error) {
+        list.innerHTML = `<p class="error">Error loading posts: ${error.message}</p>`;
+        return;
+    }
+
+    if (posts.length === 0) {
+        list.innerHTML = '<p>No posts yet. Create your first one!</p>';
+        return;
+    }
+
+    list.innerHTML = posts.map(post => `
+        <div class="post-item-row">
+            <span class="post-title">${post.title}</span>
+            <span class="post-date">${new Date(post.created_at).toLocaleDateString()}</span>
+            <div class="actions">
+                <button class="btn btn-text" onclick="editPost('${post.id}')">Edit</button>
+                <button class="btn btn-text" onclick="sendBroadcast('${post.id}')">Email</button>
+                <button class="btn btn-text delete" onclick="deletePost('${post.id}')">Delete</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function renderUploadPreview(files) {
+    const preview = document.getElementById('upload-preview');
+    preview.innerHTML = files.map(file => `
+        <div class="preview-thumb">
+            <img src="${URL.createObjectURL(file)}">
+            <span>${file.name}</span>
+        </div>
+    `).join('');
+}
+
+// --- Email Broadcast Logic ---
+async function sendBroadcast(postId) {
+    if (!confirm('Send this post as an email broadcast to all subscribers?')) return;
+    
+    const { data: post } = await supabase.from('posts').select('*').eq('id', postId).single();
+    
+    console.log('[Broadcast] Triggering email for: ' + post.title);
+    
+    try {
+        const { data, error } = await supabase.functions.invoke('send-batch-emails', {
+            body: {
+                postId: post.id,
+                title: post.title,
+                content: post.description || ''
+            }
+        });
+        
+        if (error) throw error;
+        alert('Broadcast sent successfully to subscribers!');
+    } catch (err) {
+        console.error('[Broadcast] Failed:', err);
+        alert('Failed to send broadcast: ' + err.message);
+    }
+}
+
+// --- Cleanup & Maintenance ---
+async function deletePost(id) {
+    if (!confirm('Are you sure you want to delete this post? This will remove all slides and audio from storage.')) return;
+    
+    const { error } = await supabase.from('posts').delete().eq('id', id);
+    
+    if (error) alert('Error: ' + error.message);
+    else loadAdminPosts();
+}

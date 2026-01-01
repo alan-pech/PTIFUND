@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Timothy Fund Uganda | Blog</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header class="app-header">
+        <div class="header-content">
+            <h1 class="logo">Project Timothy Fund <span>Uganda</span></h1>
+            <nav id="main-nav">
+                <a href="#home" class="nav-link">Home</a>
+                <a href="#archive" class="nav-link">Archive</a>
+                <div id="admin-link-container"></div>
+            </nav>
+        </div>
+    </header>
+
+    <main id="app-viewport">
+        <!-- Views will be injected here -->
+        <section id="home-view" class="view">
+            <div class="hero">
+                <h2>Empowering Communities through Grace</h2>
+                <p>Latest updates and prayer requests from our mission in Uganda.</p>
+            </div>
+            <div id="latest-post-container">
+                <div class="loader">Loading latest update...</div>
+            </div>
+        </section>
+
+        <section id="archive-view" class="view hidden">
+            <div class="section-header">
+                <h2>Monthly Archive</h2>
+            </div>
+            <div id="archive-grid" class="grid"></div>
+        </section>
+
+        <section id="post-view" class="view hidden">
+            <div id="post-content"></div>
+            <div id="comments-section" class="comments-section">
+                <h3>Comments</h3>
+                <div id="comments-list"></div>
+                <form id="comment-form" class="comment-form">
+                    <input type="text" id="comment-author" placeholder="Your Name" required>
+                    <textarea id="comment-text" placeholder="Leave a comment..." required></textarea>
+                    <button type="submit" class="btn btn-primary">Submit Comment</button>
+                </form>
+            </div>
+        </section>
+
+        <section id="admin-login-view" class="view hidden">
+            <div class="admin-card">
+                <h2>Admin Login</h2>
+                <form id="login-form">
+                    <input type="email" id="login-email" placeholder="Admin Email" required>
+                    <input type="password" id="login-password" placeholder="Password" required>
+                    <button type="submit" class="btn btn-primary">Login</button>
+                </form>
+            </div>
+        </section>
+
+        <section id="admin-dashboard-view" class="view hidden">
+            <div class="admin-layout">
+                <aside class="admin-sidebar">
+                    <h3>Admin Portal</h3>
+                    <ul>
+                        <li><a href="#admin/posts" class="admin-nav-link">Manage Posts</a></li>
+                        <li><a href="#admin/subscribers" class="admin-nav-link">Subscribers</a></li>
+                        <li><a href="#admin/comments" class="admin-nav-link">Moderation</a></li>
+                        <li><button id="btn-logout" class="btn btn-text">Logout</button></li>
+                    </ul>
+                </aside>
+                <div id="admin-content" class="admin-main">
+                    <!-- Admin subsections -->
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="app-footer">
+        <div class="version">v1.0.001</div>
+        <p>&copy; 2026 Project Timothy Fund Uganda</p>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/config.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

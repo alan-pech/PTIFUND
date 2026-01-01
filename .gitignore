@@ -1,0 +1,6 @@
+# Project Timothy Fund Uganda - .gitignore
+.DS_Store
+node_modules/
+js/config.js
+.gemini/
+*.log
