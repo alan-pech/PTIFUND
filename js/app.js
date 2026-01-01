@@ -642,3 +642,9 @@ async function deletePost(id) {
     if (error) alert('Error: ' + error.message);
     else loadAdminPosts();
 }
+
+// --- Post Management ---
+function editPost(id) {
+    // Navigate to post viewer which has admin controls enabled if currentUser exists
+    window.location.hash = '#post/' + id;
+}
