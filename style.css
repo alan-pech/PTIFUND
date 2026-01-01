@@ -281,18 +281,52 @@ textarea {
     border-bottom: 1px solid #eee;
 }
 
+.admin-list {
+    margin-top: 1.5rem;
+}
+
 .post-item-row {
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: 1fr 100px 220px;
     align-items: center;
-    padding: 1rem;
+    padding: 1rem 1.5rem;
     background: white;
-    margin-bottom: 0.5rem;
-    border-radius: 8px;
+    margin-bottom: 0.75rem;
+    border-radius: 12px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+    transition: transform 0.2s;
+}
+
+.post-item-row:hover {
+    transform: translateX(4px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+}
+
+.post-title {
+    font-weight: 600;
+    color: var(--color-dark);
+}
+
+.post-date {
+    font-size: 0.9rem;
+    color: #7f8c8d;
+    text-align: right;
+    padding-right: 1.5rem;
+}
+
+.post-item-row .actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+
+.post-item-row .btn-text {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.9rem;
 }
 
 .delete {
-    color: #e74c3c;
+    color: #e74c3c !important;
 }
 
 /* Responsive */
