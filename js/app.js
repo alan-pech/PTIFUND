@@ -147,6 +147,25 @@ function handleAdminRoutes(hash) {
     const subRoute = hash.split('/')[1];
     const adminContent = document.getElementById('admin-content');
 
+    // Update sidebar active state
+    document.querySelectorAll('.nav-item').forEach(item => {
+        const route = item.getAttribute('data-route');
+        if (route === subRoute) {
+            item.classList.add('active');
+        } else {
+            item.classList.remove('active');
+        }
+    });
+
+    // Bind logout
+    const logoutBtn = document.getElementById('btn-logout');
+    if (logoutBtn) {
+        logoutBtn.onclick = async () => {
+            await supabaseClient.auth.signOut();
+            window.location.hash = '#home';
+        };
+    }
+
     switch (subRoute) {
         case 'posts':
             renderAdminPosts(adminContent);
@@ -247,24 +266,35 @@ async function loadPostDetails(id) {
 // --- Admin Features ---
 async function renderAdminPosts(container) {
     container.innerHTML = `
-        <div class="admin-header">
-            <h2>Manage Blog Posts</h2>
+        <div class="admin-header-row">
+            <div class="header-left">
+                <h1>Manage Posts</h1>
+            </div>
             <button id="btn-new-post" class="btn btn-primary">+ New Post</button>
         </div>
-        <div id="admin-posts-list" class="admin-list">
-            <div class="loader">Loading posts...</div>
+        
+        <div class="card">
+            <div id="admin-posts-list" class="admin-list">
+                <div class="loader">Loading posts...</div>
+            </div>
         </div>
         
         <!-- New Post Modal (Hidden) -->
         <div id="modal-new-post" class="modal hidden">
-            <div class="modal-content">
+            <div class="modal-content card">
                 <h3>Create New Post</h3>
-                <input type="text" id="new-post-title" placeholder="Post Title (e.g. June 2026 Update)">
+                <div class="input-group">
+                    <label>Post Title</label>
+                    <input type="text" id="new-post-title" placeholder="e.g. February 2026 Update">
+                </div>
+                
                 <div class="upload-zone" id="upload-zone">
-                    <p>Click to select folder of PNG images</p>
+                    <p>📁 Click to select folder of PNG images</p>
                     <input type="file" id="folder-input" webkitdirectory directory multiple hidden>
                 </div>
+                
                 <div id="upload-preview" class="upload-preview grid"></div>
+                
                 <div class="modal-actions">
                     <button class="btn btn-text" id="btn-cancel-post">Cancel</button>
                     <button class="btn btn-primary" id="btn-save-post">Create Post & Upload</button>
@@ -281,7 +311,6 @@ async function renderAdminPosts(container) {
         document.getElementById('modal-new-post').classList.add('hidden');
     };
 
-    // Folder selection
     const uploadZone = document.getElementById('upload-zone');
     const folderInput = document.getElementById('folder-input');
     const btnSave = document.getElementById('btn-save-post');
@@ -529,10 +558,9 @@ async function saveAndUploadAudio() {
         const item = document.querySelector(`.gallery-item[data-id="${audioRecorder.targetSlideId}"]`);
         if (item) {
             item.dataset.audio = publicUrl;
-            if (!item.querySelector('.audio-icon')) {
+            if (!item.querySelector('.audio-badge')) {
                 const icon = document.createElement('div');
-                icon.className = 'audio-icon';
-                icon.style.pointerEvents = 'none';
+                icon.className = 'audio-badge';
                 icon.textContent = '♪';
                 item.appendChild(icon);
             }
@@ -584,7 +612,7 @@ async function deleteAudio(slideId, audioUrl) {
         const item = document.querySelector(`.gallery-item[data-id="${slideId}"]`);
         if (item) {
             item.dataset.audio = '';
-            const icon = item.querySelector('.audio-icon');
+            const icon = item.querySelector('.audio-badge');
             if (icon) icon.remove();
         }
 
@@ -595,25 +623,33 @@ async function deleteAudio(slideId, audioUrl) {
 }
 
 // --- Subscriber Management Logic ---
-async function loadAdminSubscribers() {
-    const tbody = document.getElementById('subscribers-tbody');
-    const { data: subs, error } = await supabaseClient.from('subscribers').select('*').order('created_at', { ascending: false });
+async function renderAdminSubscribers(container) {
+    container.innerHTML = `
+        <div class="admin-header-row">
+            <div class="header-left">
+                <h1>Supporters</h1>
+            </div>
+            <button id="btn-new-sub" class="btn btn-primary">+ Add Supporter</button>
+        </div>
+        
+        <div class="card">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Joined</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="subscribers-tbody">
+                    <tr><td colspan="4">Loading supporters...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    `;
 
-    if (error) {
-        tbody.innerHTML = `<tr><td colspan="4">Error: ${error.message}</td></tr>`;
-        return;
-    }
-
-    tbody.innerHTML = subs.map(sub => `
-        <tr>
-            <td>${sub.name}</td>
-            <td>${sub.email}</td>
-            <td>${new Date(sub.created_at).toLocaleDateString()}</td>
-            <td>
-                <button class="btn btn-text delete" onclick="deleteSubscriber('${sub.id}')">Delete</button>
-            </td>
-        </tr>
-    `).join('');
+    loadAdminSubscribers();
 
     document.getElementById('btn-new-sub').onclick = async () => {
         const name = prompt('Enter Supporter Name:');
@@ -623,6 +659,32 @@ async function loadAdminSubscribers() {
             loadAdminSubscribers();
         }
     };
+}
+
+async function loadAdminSubscribers() {
+    const tbody = document.getElementById('subscribers-tbody');
+    const { data: subs, error } = await supabaseClient.from('subscribers').select('*').order('created_at', { ascending: false });
+
+    if (error) {
+        tbody.innerHTML = `<tr><td colspan="4">Error: ${error.message}</td></tr>`;
+        return;
+    }
+
+    if (subs.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4">No supporters found.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = subs.map(sub => `
+        <tr>
+            <td><strong>${sub.name}</strong></td>
+            <td>${sub.email}</td>
+            <td>${new Date(sub.created_at).toLocaleDateString()}</td>
+            <td>
+                <button class="btn btn-text delete" onclick="deleteSubscriber('${sub.id}')">Remove</button>
+            </td>
+        </tr>
+    `).join('');
 }
 
 async function deleteSubscriber(id) {
@@ -710,6 +772,22 @@ async function deleteSlide(slideId) {
 }
 
 // --- Comment Moderation Logic ---
+async function renderAdminComments(container) {
+    container.innerHTML = `
+        <div class="admin-header-row">
+            <div class="header-left">
+                <h1>Moderation</h1>
+            </div>
+        </div>
+        
+        <div id="comments-queue" class="comments-moderation-grid">
+            <div class="loader">Loading pending comments...</div>
+        </div>
+    `;
+
+    loadAdminComments();
+}
+
 async function loadAdminComments() {
     const queue = document.getElementById('comments-queue');
     const { data: comments, error } = await supabaseClient
@@ -723,19 +801,19 @@ async function loadAdminComments() {
     }
 
     if (comments.length === 0) {
-        queue.innerHTML = '<p>No pending comments.</p>';
+        queue.innerHTML = '<div class="card"><p>No pending comments in the queue.</p></div>';
         return;
     }
 
     queue.innerHTML = comments.map(c => `
-        <div class="comment-item">
+        <div class="card moderation-card">
             <div class="comment-meta">
                 <strong>${c.author_name}</strong> on <em>${c.posts.title}</em>
             </div>
             <p class="comment-body">${c.comment_text}</p>
             <div class="actions">
                 <button class="btn btn-primary" onclick="moderateComment('${c.id}', 'approved')">Approve</button>
-                <button class="btn btn-text delete" onclick="moderateComment('${c.id}', 'deleted')">Delete</button>
+                <button class="btn btn-text delete" onclick="moderateComment('${c.id}', 'deleted')">Deny</button>
             </div>
         </div>
     `).join('');
@@ -816,48 +894,98 @@ async function renderAdminEditGallery(container, postId) {
     const { data: slides } = await supabaseClient.from('slides').select('*').eq('post_id', postId).order('order_index');
 
     container.innerHTML = `
-        <div class="admin-header">
-            <h2>Editing: ${post.title}</h2>
-            <button class="btn btn-text" onclick="window.location.hash='#admin/posts'">← Back to Posts</button>
+        <div class="admin-header-row">
+            <div class="header-left">
+                <button class="btn btn-text" onclick="window.location.hash='#admin/posts'">← Back</button>
+                <h1>Edit Post</h1>
+            </div>
+            <div class="toggle-group">
+                <button class="btn btn-primary active">Gallery</button>
+                <button class="btn" disabled>List</button>
+            </div>
         </div>
-        <p class="help-text">Drag and drop thumbnails to re-order. Right-click for options.</p>
-        <div id="gallery-container" class="slides-gallery">
-            ${(slides || []).map(slide => `
-                <div class="gallery-item" draggable="true" data-id="${slide.id}" data-image="${slide.image_url}" data-audio="${slide.audio_url || ''}">
-                    <img src="${slide.image_url}" loading="lazy" style="pointer-events: none; user-select: none;">
-                    <div class="slide-badge" style="pointer-events: none;">${slide.order_index + 1}</div>
-                    ${slide.audio_url ? '<div class="audio-icon" style="pointer-events: none;">♪</div>' : ''}
-                </div>
-            `).join('')}
+
+        <div class="card">
+            <h3>Post Title</h3>
+            <div class="input-row">
+                <input type="text" id="edit-post-title" value="${post.title}" placeholder="Enter post title">
+                <button class="btn btn-secondary" onclick="updatePostTitle('${post.id}')">Update Title</button>
+            </div>
+        </div>
+
+        <div class="manage-slides-section">
+            <div class="section-header">
+                <h2>Manage Slides</h2>
+                <p class="help-text">Drag slides to reorder. Right-click on a slide to see options.</p>
+            </div>
+            
+            <div id="gallery-container" class="slides-grid">
+                ${(slides || []).map(slide => `
+                    <div class="slide-card-wrapper">
+                        <div class="gallery-item" draggable="true" data-id="${slide.id}" data-image="${slide.image_url}" data-audio="${slide.audio_url || ''}">
+                            <img src="${slide.image_url}" loading="lazy">
+                            ${slide.audio_url ? '<div class="audio-badge">♪</div>' : ''}
+                        </div>
+                        <div class="slide-label">Slide ${slide.order_index + 1}</div>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>Add More Slides</h3>
+            <div class="upload-zone" onclick="document.getElementById('slide-files').click()">
+                <input type="file" id="slide-files" multiple accept="image/*" style="display: none;">
+                <p>📁 Click to choose files or drag and drop here</p>
+            </div>
+            <button class="btn btn-primary full-width" onclick="uploadNewSlides('${post.id}')">Upload & Save New Slides</button>
         </div>
     `;
 
     initDragAndDrop(postId);
 }
 
+async function updatePostTitle(postId) {
+    const newTitle = document.getElementById('edit-post-title').value;
+    if (!newTitle.trim()) return alert('Title cannot be empty');
+
+    const { error } = await supabaseClient.from('posts').update({ title: newTitle }).eq('id', postId);
+    if (!error) alert('Title updated successfully!');
+    else alert('Error updating title: ' + error.message);
+}
+
 function initDragAndDrop(postId) {
     const gallery = document.getElementById('gallery-container');
-    let draggedItem = null;
+    let draggedWrapper = null;
 
     gallery.addEventListener('dragstart', (e) => {
-        draggedItem = e.target.closest('.gallery-item');
-        if (!draggedItem) return;
-        draggedItem.classList.add('dragging');
+        const galleryItem = e.target.closest('.gallery-item');
+        if (!galleryItem) return;
+
+        draggedWrapper = galleryItem.closest('.slide-card-wrapper');
+        if (draggedWrapper) {
+            draggedWrapper.classList.add('dragging');
+            galleryItem.classList.add('dragging');
+        }
     });
 
     gallery.addEventListener('dragend', (e) => {
-        if (!draggedItem) return;
-        draggedItem.classList.remove('dragging');
+        if (!draggedWrapper) return;
+        draggedWrapper.classList.remove('dragging');
+        draggedWrapper.querySelector('.gallery-item')?.classList.remove('dragging');
         updateSlideOrder(postId);
+        draggedWrapper = null;
     });
 
     gallery.addEventListener('dragover', (e) => {
         e.preventDefault();
+        if (!draggedWrapper) return;
+
         const afterElement = getDragAfterElement(gallery, e.clientX, e.clientY);
         if (afterElement == null) {
-            gallery.appendChild(draggedItem);
+            gallery.appendChild(draggedWrapper);
         } else {
-            gallery.insertBefore(draggedItem, afterElement);
+            gallery.insertBefore(draggedWrapper, afterElement);
         }
     });
 
@@ -871,15 +999,15 @@ function initDragAndDrop(postId) {
                 image_url: item.dataset.image,
                 audio_url: item.dataset.audio || null
             };
-            showContextMenu(e.pageX, e.pageY, slide);
+            showContextMenu(e.pageX, e.pageY, slide, postId);
         }
     });
 }
 
 function getDragAfterElement(container, x, y) {
-    const draggableElements = [...container.querySelectorAll('.gallery-item:not(.dragging)')];
+    const draggableWrappers = [...container.querySelectorAll('.slide-card-wrapper:not(.dragging)')];
 
-    return draggableElements.reduce((closest, child) => {
+    return draggableWrappers.reduce((closest, child) => {
         const box = child.getBoundingClientRect();
         const centerX = box.left + box.width / 2;
         const centerY = box.top + box.height / 2;
@@ -902,14 +1030,57 @@ async function updateSlideOrder(postId) {
         order_index: index
     }));
 
-    // Perform individual updates (Supabase doesn't support bulk update with different keys in one go easily without RPC)
+    // Perform individual updates
     for (const update of updates) {
         await supabaseClient.from('slides').update({ order_index: update.order_index }).eq('id', update.id);
     }
 
-    // Refresh UI to show new badges
-    const { data: slides } = await supabaseClient.from('slides').select('*').eq('post_id', postId).order('order_index');
+    // Refresh UI
     renderAdminEditGallery(document.getElementById('admin-content'), postId);
+}
+
+async function uploadNewSlides(postId) {
+    const fileInput = document.getElementById('slide-files');
+    const files = fileInput.files;
+    if (files.length === 0) return alert('Select files first');
+
+    const btn = document.querySelector('.add-slides-section .btn');
+    const originalText = btn.textContent;
+    btn.textContent = 'Uploading...';
+    btn.disabled = true;
+
+    try {
+        // Get current max order
+        const { data: slides } = await supabaseClient.from('slides').select('order_index').eq('post_id', postId).order('order_index', { ascending: false }).limit(1);
+        let nextIndex = slides.length > 0 ? slides[0].order_index + 1 : 0;
+
+        for (const file of files) {
+            const fileName = `${postId}_${Date.now()}_${file.name}`;
+            const filePath = `post-slides/${fileName}`;
+
+            const { data, error } = await supabaseClient.storage.from('blog-assets').upload(filePath, file);
+            if (error) throw error;
+
+            const { data: publicUrlData } = supabaseClient.storage.from('blog-assets').getPublicUrl(filePath);
+            const imageUrl = publicUrlData.publicUrl;
+
+            await supabaseClient.from('slides').insert({
+                post_id: postId,
+                image_url: imageUrl,
+                order_index: nextIndex++
+            });
+        }
+
+        alert('Slides uploaded successfully!');
+        renderAdminEditGallery(document.getElementById('admin-content'), postId);
+    } catch (err) {
+        console.error('Upload error:', err);
+        alert('Upload failed: ' + err.message);
+    } finally {
+        btn.textContent = originalText;
+        btn.disabled = false;
+        fileInput.value = '';
+    }
 }
 
 

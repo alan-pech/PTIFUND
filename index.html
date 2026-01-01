@@ -68,20 +68,38 @@
             </div>
         </section>
 
+
         <section id="admin-dashboard-view" class="view hidden">
             <div class="admin-layout">
                 <aside class="admin-sidebar">
-                    <h3>Admin Portal</h3>
-                    <ul>
-                        <li><a href="#admin/posts" class="admin-nav-link">Manage Posts</a></li>
-                        <li><a href="#admin/subscribers" class="admin-nav-link">Subscribers</a></li>
-                        <li><a href="#admin/comments" class="admin-nav-link">Moderation</a></li>
-                        <li><button id="btn-logout" class="btn btn-text">Logout</button></li>
-                    </ul>
+                    <div class="sidebar-brand">
+                        <h3>Admin Portal</h3>
+                    </div>
+                    <nav class="sidebar-nav">
+                        <a href="#admin/posts" class="nav-item" data-route="posts">
+                            <span class="nav-icon">📝</span>
+                            <span class="nav-label">Manage Posts</span>
+                        </a>
+                        <a href="#admin/subscribers" class="nav-item" data-route="subscribers">
+                            <span class="nav-icon">👥</span>
+                            <span class="nav-label">Subscribers</span>
+                        </a>
+                        <a href="#admin/comments" class="nav-item" data-route="comments">
+                            <span class="nav-icon">💬</span>
+                            <span class="nav-label">Moderation</span>
+                        </a>
+                    </nav>
+                    <div class="sidebar-footer">
+                        <button id="btn-logout" class="btn btn-text logout-btn">
+                            <span class="nav-icon">🚪</span>
+                            <span>Logout</span>
+                        </button>
+                        <div class="app-version">v1.0.002</div>
+                    </div>
                 </aside>
-                <div id="admin-content" class="admin-main">
+                <main id="admin-content" class="admin-main">
                     <!-- Admin subsections -->
-                </div>
+                </main>
             </div>
         </section>
 
