@@ -6,7 +6,7 @@
  */
 
 // --- Constants & State ---
-const APP_VERSION = 'v1.0.001';
+const APP_VERSION = 'v1.0.002';
 const ADMIN_ROUTE_SECRET = 'admin-portal'; // Accessible via index.html#admin-portal
 
 let currentUser = null;
@@ -407,7 +407,17 @@ function resetRecorderUI() {
 
 async function startCapture() {
     try {
+        console.log('[Audio] Requesting microphone access...');
         audioRecorder.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+        // Ensure AudioContext is resumed (required by some browsers)
+        if (!audioRecorder.audioCtx) {
+            audioRecorder.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioRecorder.audioCtx.state === 'suspended') {
+            await audioRecorder.audioCtx.resume();
+        }
+
         audioRecorder.recorder = new MediaRecorder(audioRecorder.stream);
         audioRecorder.chunks = [];
 
@@ -425,7 +435,14 @@ async function startCapture() {
 
         console.log('[Audio] Capture started');
     } catch (err) {
-        alert('Microphone access denied or not available.');
+        console.error('[Audio] Capture failed:', err);
+        let msg = 'Microphone access denied or not available.';
+        if (err.name === 'NotAllowedError') msg = 'Microphone permission was denied. Please allow it in your browser settings.';
+        else if (err.name === 'NotFoundError') msg = 'No microphone was found on this device.';
+        else if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
+            msg = 'Audio recording requires a secure connection (HTTPS).';
+        }
+        alert(msg + '\n\nDebug: ' + err.message);
     }
 }
 
