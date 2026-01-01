@@ -935,10 +935,10 @@ async function renderAdminEditGallery(container, postId) {
         <div class="card">
             <h3>Add More Slides</h3>
             <div class="upload-zone" onclick="document.getElementById('slide-files').click()">
-                <input type="file" id="slide-files" multiple accept="image/*" style="display: none;">
+                <input type="file" id="slide-files" multiple accept="image/*" style="display: none;" onchange="uploadNewSlides('${post.id}')">
                 <p>📁 Click to choose files or drag and drop here</p>
             </div>
-            <button class="btn btn-primary full-width" onclick="uploadNewSlides('${post.id}')">Upload & Save New Slides</button>
+            <div id="upload-status" style="margin-top: 1rem; color: var(--color-orange); font-weight: 500;"></div>
         </div>
     `;
 
@@ -1042,12 +1042,10 @@ async function updateSlideOrder(postId) {
 async function uploadNewSlides(postId) {
     const fileInput = document.getElementById('slide-files');
     const files = fileInput.files;
-    if (files.length === 0) return alert('Select files first');
+    if (files.length === 0) return;
 
-    const btn = document.querySelector('.add-slides-section .btn');
-    const originalText = btn.textContent;
-    btn.textContent = 'Uploading...';
-    btn.disabled = true;
+    const statusDiv = document.getElementById('upload-status');
+    statusDiv.textContent = `Uploading ${files.length} slide(s)...`;
 
     try {
         // Get current max order
@@ -1056,13 +1054,13 @@ async function uploadNewSlides(postId) {
 
         for (const file of files) {
             const fileName = `${postId}_${Date.now()}_${file.name}`;
-            const filePath = `post-slides/${fileName}`;
+            const filePath = `${postId}/slide_${nextIndex}_${Date.now()}.png`;
 
-            const { data, error } = await supabaseClient.storage.from('blog-assets').upload(filePath, file);
+            const { data, error } = await supabaseClient.storage.from('post-assets').upload(filePath, file);
             if (error) throw error;
 
-            const { data: publicUrlData } = supabaseClient.storage.from('blog-assets').getPublicUrl(filePath);
-            const imageUrl = publicUrlData.publicUrl;
+            const { data: { publicUrl } } = supabaseClient.storage.from('post-assets').getPublicUrl(filePath);
+            const imageUrl = publicUrl;
 
             await supabaseClient.from('slides').insert({
                 post_id: postId,
@@ -1071,14 +1069,15 @@ async function uploadNewSlides(postId) {
             });
         }
 
-        alert('Slides uploaded successfully!');
-        renderAdminEditGallery(document.getElementById('admin-content'), postId);
+        statusDiv.textContent = `✓ ${files.length} slide(s) uploaded successfully!`;
+        setTimeout(() => {
+            renderAdminEditGallery(document.getElementById('admin-content'), postId);
+        }, 500);
     } catch (err) {
         console.error('Upload error:', err);
-        alert('Upload failed: ' + err.message);
+        statusDiv.textContent = `✗ Upload failed: ${err.message}`;
+        statusDiv.style.color = '#e74c3c';
     } finally {
-        btn.textContent = originalText;
-        btn.disabled = false;
         fileInput.value = '';
     }
 }
