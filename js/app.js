@@ -362,28 +362,158 @@ async function createPostWithSlides(title, files) {
     }
 }
 
-// --- Audio Recording Logic ---
-let mediaRecorder;
-let audioChunks = [];
+// --- Audio Recording Logic (Pro Modal with Visualization) ---
+let audioRecorder = {
+    recorder: null,
+    chunks: [],
+    stream: null,
+    audioCtx: null,
+    analyser: null,
+    animationId: null,
+    startTime: 0,
+    timerInterval: null,
+    targetSlideId: null
+};
 
-async function startRecording(slideId) {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    mediaRecorder = new MediaRecorder(stream);
-    audioChunks = [];
+async function openAudioRecorder(slideId) {
+    audioRecorder.targetSlideId = slideId;
+    const modal = document.getElementById('modal-audio-recorder');
+    modal.classList.remove('hidden');
 
-    mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
-    mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunks, { type: 'audio/mp3' });
-        await uploadAudio(slideId, audioBlob);
-    };
+    resetRecorderUI();
 
-    mediaRecorder.start();
-    console.log(`[Audio] Recording started for slide ${slideId}`);
+    // Bind buttons
+    document.getElementById('btn-start-record').onclick = startCapture;
+    document.getElementById('btn-stop-record').onclick = stopCapture;
+    document.getElementById('btn-save-record').onclick = saveAndUploadAudio;
+    document.getElementById('btn-cancel-record').onclick = closeAudioRecorder;
 }
 
-async function stopRecording() {
-    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-        mediaRecorder.stop();
+function closeAudioRecorder() {
+    stopCapture();
+    document.getElementById('modal-audio-recorder').classList.add('hidden');
+    if (audioRecorder.stream) {
+        audioRecorder.stream.getTracks().forEach(track => track.stop());
+    }
+}
+
+function resetRecorderUI() {
+    document.getElementById('btn-start-record').classList.remove('hidden');
+    document.getElementById('btn-stop-record').classList.add('hidden');
+    document.getElementById('btn-save-record').classList.add('hidden');
+    document.getElementById('recording-timer').textContent = '00:00';
+    clearWaveform();
+}
+
+async function startCapture() {
+    try {
+        audioRecorder.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        audioRecorder.recorder = new MediaRecorder(audioRecorder.stream);
+        audioRecorder.chunks = [];
+
+        audioRecorder.recorder.ondataavailable = (e) => audioRecorder.chunks.push(e.data);
+
+        // Visuals
+        initVisualizer(audioRecorder.stream);
+
+        audioRecorder.recorder.start();
+        audioRecorder.startTime = Date.now();
+        audioRecorder.timerInterval = setInterval(updateTimer, 1000);
+
+        document.getElementById('btn-start-record').classList.add('hidden');
+        document.getElementById('btn-stop-record').classList.remove('hidden');
+
+        console.log('[Audio] Capture started');
+    } catch (err) {
+        alert('Microphone access denied or not available.');
+    }
+}
+
+function stopCapture() {
+    if (audioRecorder.recorder && audioRecorder.recorder.state === 'recording') {
+        audioRecorder.recorder.stop();
+        clearInterval(audioRecorder.timerInterval);
+        cancelAnimationFrame(audioRecorder.animationId);
+
+        document.getElementById('btn-stop-record').classList.add('hidden');
+        document.getElementById('btn-save-record').classList.remove('hidden');
+
+        console.log('[Audio] Capture stopped');
+    }
+}
+
+function updateTimer() {
+    const elapsed = Math.floor((Date.now() - audioRecorder.startTime) / 1000);
+    const m = String(Math.floor(elapsed / 60)).padStart(2, '0');
+    const s = String(elapsed % 60).padStart(2, '0');
+    document.getElementById('recording-timer').textContent = `${m}:${s}`;
+}
+
+function initVisualizer(stream) {
+    audioRecorder.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const source = audioRecorder.audioCtx.createMediaStreamSource(stream);
+    audioRecorder.analyser = audioRecorder.audioCtx.createAnalyser();
+    audioRecorder.analyser.fftSize = 256;
+    source.connect(audioRecorder.analyser);
+
+    drawWaveform();
+}
+
+function drawWaveform() {
+    const canvas = document.getElementById('waveform');
+    const ctx = canvas.getContext('2d');
+    const bufferLength = audioRecorder.analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+
+    const render = () => {
+        audioRecorder.animationId = requestAnimationFrame(render);
+        audioRecorder.analyser.getByteTimeDomainData(dataArray);
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = '#D35400';
+        ctx.beginPath();
+
+        const sliceWidth = canvas.width / bufferLength;
+        let x = 0;
+
+        for (let i = 0; i < bufferLength; i++) {
+            const v = dataArray[i] / 128.0;
+            const y = v * canvas.height / 2;
+
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+
+            x += sliceWidth;
+        }
+
+        ctx.lineTo(canvas.width, canvas.height / 2);
+        ctx.stroke();
+    };
+    render();
+}
+
+function clearWaveform() {
+    const canvas = document.getElementById('waveform');
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+}
+
+async function saveAndUploadAudio() {
+    const blob = new Blob(audioRecorder.chunks, { type: 'audio/mp3' });
+    const btnSave = document.getElementById('btn-save-record');
+    btnSave.textContent = 'Uploading...';
+    btnSave.disabled = true;
+
+    try {
+        await uploadAudio(audioRecorder.targetSlideId, blob);
+        closeAudioRecorder();
+        alert('Audio tagged successfully!');
+    } catch (err) {
+        alert('Upload failed: ' + err.message);
+    } finally {
+        btnSave.textContent = 'Save & Upload';
+        btnSave.disabled = false;
     }
 }
 
@@ -393,10 +523,7 @@ async function uploadAudio(slideId, blob) {
         .from('post-assets')
         .upload(filePath, blob);
 
-    if (uploadErr) {
-        console.error('[Audio] Upload failed:', uploadErr);
-        return;
-    }
+    if (uploadErr) throw uploadErr;
 
     const { data: { publicUrl } } = supabaseClient.storage.from('post-assets').getPublicUrl(filePath);
 
@@ -405,8 +532,7 @@ async function uploadAudio(slideId, blob) {
         .update({ audio_url: publicUrl })
         .eq('id', slideId);
 
-    if (dbErr) console.error('[Audio] DB update failed:', dbErr);
-    else console.log('[Audio] Successfully tagged to slide.');
+    if (dbErr) throw dbErr;
 }
 
 // --- Subscriber Management Logic ---
@@ -479,12 +605,8 @@ function showContextMenu(x, y, slide) {
 
     // Bind item events
     document.getElementById('menu-record').onclick = () => {
-        startRecording(slide.id);
-        menu.innerHTML = '<div class="menu-item" id="menu-stop">⏹️ Stop Recording</div>';
-        document.getElementById('menu-stop').onclick = () => {
-            stopRecording();
-            menu.remove();
-        };
+        openAudioRecorder(slide.id);
+        menu.remove();
     };
 
     document.getElementById('menu-delete').onclick = () => {

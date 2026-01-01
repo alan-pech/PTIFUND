@@ -1,14 +1,18 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Project Timothy Fund Uganda | Blog</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&family=Playfair+Display:wght@700&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
     <header class="app-header">
         <div class="header-content">
@@ -80,6 +84,23 @@
                 </div>
             </div>
         </section>
+
+        <!-- Audio Recorder Modal -->
+        <div id="modal-audio-recorder" class="modal hidden">
+            <div class="modal-content recorder-modal">
+                <h3>Record Audio Snippet</h3>
+                <div class="recorder-container">
+                    <canvas id="waveform" width="400" height="100"></canvas>
+                    <div class="timer" id="recording-timer">00:00</div>
+                </div>
+                <div class="modal-actions">
+                    <button id="btn-start-record" class="btn btn-primary">Start Recording</button>
+                    <button id="btn-stop-record" class="btn btn-secondary hidden">Stop</button>
+                    <button id="btn-save-record" class="btn btn-primary hidden">Save & Upload</button>
+                    <button id="btn-cancel-record" class="btn btn-text">Cancel</button>
+                </div>
+            </div>
+        </div>
     </main>
 
     <footer class="app-footer">
@@ -92,4 +113,5 @@
     <script src="js/config.js"></script>
     <script src="js/app.js"></script>
 </body>
+
 </html>
