@@ -193,6 +193,7 @@ function updateVersionDisplay() {
 
 // --- Consumer Content Loading ---
 async function loadLatestPost() {
+    const container = document.getElementById('latest-post-container');
     const { data: posts, error } = await supabaseClient
         .from('posts')
         .select('*')
@@ -200,11 +201,41 @@ async function loadLatestPost() {
         .limit(1);
 
     if (error || !posts.length) {
-        document.getElementById('latest-post-container').innerHTML = '<p>No updates found.</p>';
+        container.innerHTML = '<p>No updates found.</p>';
         return;
     }
 
-    loadPostDetails(posts[0].id);
+    const post = posts[0];
+    const { data: slides } = await supabaseClient.from('slides').select('*').eq('post_id', post.id).order('order_index');
+
+    container.innerHTML = `
+        <div class="post-with-sidebar">
+            <aside class="slides-thumbnail-sidebar">
+                ${slides.map((slide, index) => `
+                    <div class="thumbnail-item" data-slide-index="${index}" onclick="scrollToSlide(${index})">
+                        <img src="${slide.image_url}" alt="Slide ${index + 1}">
+                    </div>
+                `).join('')}
+            </aside>
+            <article class="post-detail">
+                <h2>${post.title}</h2>
+                <div class="slides-stack">
+                    ${slides.map((slide, index) => `
+                        <div class="slide-card" data-slide-index="${index}">
+                            <img src="${slide.image_url}" class="slide-image" loading="lazy">
+                            ${slide.audio_url ? `
+                                <div class="audio-wrapper">
+                                    <audio controls src="${slide.audio_url}"></audio>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            </article>
+        </div>
+    `;
+
+    loadComments(post.id);
 }
 
 async function loadArchive() {
@@ -238,21 +269,30 @@ async function loadPostDetails(id) {
     if (!post) return;
 
     content.innerHTML = `
-        <article class="post-detail">
-            <h2>${post.title}</h2>
-            <div class="slides-stack">
-                ${slides.map(slide => `
-                    <div class="slide-card">
-                        <img src="${slide.image_url}" class="slide-image" loading="lazy">
-                        ${slide.audio_url ? `
-                            <div class="audio-wrapper">
-                                <audio controls src="${slide.audio_url}"></audio>
-                            </div>
-                        ` : ''}
+        <div class="post-with-sidebar">
+            <aside class="slides-thumbnail-sidebar">
+                ${slides.map((slide, index) => `
+                    <div class="thumbnail-item" data-slide-index="${index}" onclick="scrollToSlide(${index})">
+                        <img src="${slide.image_url}" alt="Slide ${index + 1}">
                     </div>
                 `).join('')}
-            </div>
-        </article>
+            </aside>
+            <article class="post-detail">
+                <h2>${post.title}</h2>
+                <div class="slides-stack">
+                    ${slides.map((slide, index) => `
+                        <div class="slide-card" data-slide-index="${index}">
+                            <img src="${slide.image_url}" class="slide-image" loading="lazy">
+                            ${slide.audio_url ? `
+                                <div class="audio-wrapper">
+                                    <audio controls src="${slide.audio_url}"></audio>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            </article>
+        </div>
     `;
 
     loadComments(id);
@@ -260,6 +300,23 @@ async function loadPostDetails(id) {
     // If admin is viewing, allow editing/audio tagging
     if (currentUser) {
         attachAdminControlsToSlides(slides);
+    }
+}
+
+// Scroll to specific slide
+function scrollToSlide(index) {
+    const slideCard = document.querySelector(`.slide-card[data-slide-index="${index}"]`);
+    if (slideCard) {
+        slideCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        
+        // Highlight active thumbnail
+        document.querySelectorAll('.thumbnail-item').forEach(item => {
+            item.classList.remove('active');
+        });
+        const thumbnail = document.querySelector(`.thumbnail-item[data-slide-index="${index}"]`);
+        if (thumbnail) {
+            thumbnail.classList.add('active');
+        }
     }
 }
 
