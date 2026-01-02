@@ -1,6 +1,8 @@
-# Project Timothy Fund Uganda - .gitignore
-.DS_Store
-node_modules/
+# Supabase config with secrets
 js/config.js
-.gemini/
-*.log
+
+# Node modules (if any)
+node_modules/
+
+# OS files
+.DS_Store
