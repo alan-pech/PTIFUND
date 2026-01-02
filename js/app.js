@@ -6,7 +6,7 @@
  */
 
 // --- Constants & State ---
-const APP_VERSION = 'v1.0.003';
+const APP_VERSION = 'v1.0.004';
 const ADMIN_ROUTE_SECRET = 'admin-portal'; // Accessible via index.html#admin-portal
 
 let currentUser = null;
@@ -845,10 +845,14 @@ function showContextMenu(x, y, slide) {
     menu.style.left = `${x}px`;
 
     const hasAudio = !!slide.audio_url && slide.audio_url !== '';
+    const hasVideo = !!slide.video_url && slide.video_url !== '';
 
     menu.innerHTML = `
         <div class="menu-item" id="menu-record-action">
-            ${hasAudio ? '�️ Delete Recorded Audio' : '�🔴 Record Audio'}
+            ${hasAudio ? '🗑️ Delete Recorded Audio' : '🎙️ Record Audio'}
+        </div>
+        <div class="menu-item" id="menu-video-action">
+            🎥 ${hasVideo ? 'Edit' : 'Add'} Video
         </div>
         <div class="menu-item delete" id="menu-delete-slide">🗑️ Delete Slide</div>
     `;
@@ -878,6 +882,7 @@ function showContextMenu(x, y, slide) {
     // Close on click elsewhere
     document.addEventListener('click', () => menu.remove(), { once: true });
 }
+
 
 async function deleteSlide(slideId) {
     if (!confirm('Are you sure you want to delete this slide?')) return;
@@ -1259,123 +1264,124 @@ async function deletePost(id) {
 
     const { error } = await supabaseClient.from('posts').delete().eq('id', id);
 
-    // --- Video Upload Logic ---
-    let currentVideoSlide = null;
-
-    async function openVideoUploader(slide) {
-        currentVideoSlide = slide;
-        const modal = document.getElementById('modal-video-uploader');
-        const descriptionInput = document.getElementById('video-description');
-        const btnDelete = document.getElementById('btn-delete-video');
-        const statusDiv = document.getElementById('video-upload-status');
-
-        // Reset UI
-        descriptionInput.value = slide.video_description || '';
-        statusDiv.textContent = '';
-        document.getElementById('video-file-input').value = '';
-
-        if (slide.video_url) {
-            btnDelete.classList.remove('hidden');
-        } else {
-            btnDelete.classList.add('hidden');
-        }
-
-        modal.classList.remove('hidden');
-
-        // Bind buttons
-        document.getElementById('btn-cancel-video').onclick = () => modal.classList.add('hidden');
-        document.getElementById('video-upload-zone').onclick = () => document.getElementById('video-file-input').click();
-
-        btnDelete.onclick = async () => {
-            if (confirm('Are you sure you want to remove the video from this slide?')) {
-                await deleteVideo(slide.id, slide.video_url);
-                modal.classList.add('hidden');
-            }
-        };
-
-        document.getElementById('btn-save-video').onclick = async () => {
-            const fileInput = document.getElementById('video-file-input');
-            const description = descriptionInput.value;
-            const file = fileInput.files[0];
-
-            if (!file && !slide.video_url) {
-                alert('Please select a video file.');
-                return;
-            }
-
-            const btnSave = document.getElementById('btn-save-video');
-            btnSave.disabled = true;
-            btnSave.textContent = 'Processing...';
-
-            try {
-                let videoUrl = slide.video_url;
-
-                if (file) {
-                    statusDiv.textContent = 'Uploading video...';
-                    const filePath = `video/${slide.id}_${Date.now()}_${file.name}`;
-                    const { error: uploadErr } = await supabaseClient.storage.from('post-assets').upload(filePath, file);
-                    if (uploadErr) throw uploadErr;
-
-                    const { data: { publicUrl } } = supabaseClient.storage.from('post-assets').getPublicUrl(filePath);
-                    videoUrl = publicUrl;
-                }
-
-                statusDiv.textContent = 'Updating database...';
-                const { error: dbErr } = await supabaseClient
-                    .from('slides')
-                    .update({
-                        video_url: videoUrl,
-                        video_description: description
-                    })
-                    .eq('id', slide.id);
-
-                if (dbErr) throw dbErr;
-
-                alert('Video updated successfully!');
-                modal.classList.add('hidden');
-
-                // Refresh current view to show changes
-                if (window.location.hash.startsWith('#admin/edit/')) {
-                    const postId = window.location.hash.split('/')[2];
-                    renderAdminEditGallery(document.getElementById('admin-content'), postId);
-                }
-            } catch (err) {
-                alert('Operation failed: ' + err.message);
-            } finally {
-                btnSave.disabled = false;
-                btnSave.textContent = 'Upload & Tag Slide';
-            }
-        };
-    }
-
-    async function deleteVideo(slideId, videoUrl) {
-        try {
-            // 1. Storage Cleanup
-            if (videoUrl) {
-                const fileName = videoUrl.split('/').pop();
-                await supabaseClient.storage.from('post-assets').remove([`video/${fileName}`]);
-            }
-
-            // 2. Database Update
-            await supabaseClient.from('slides').update({
-                video_url: null,
-                video_description: null
-            }).eq('id', slideId);
-
-            alert('Video removed successfully.');
-
-            // Refresh UI
-            if (window.location.hash.startsWith('#admin/edit/')) {
-                const postId = window.location.hash.split('/')[2];
-                renderAdminEditGallery(document.getElementById('admin-content'), postId);
-            }
-        } catch (err) {
-            alert('Failed to remove video: ' + err.message);
-        }
-    }
 
     if (error) alert('Error: ' + error.message);
     else loadAdminPosts();
 }
 
 // --- Post Management ---
+
+// --- Video Upload Logic ---
+let currentVideoSlide = null;
+
+async function openVideoUploader(slide) {
+    currentVideoSlide = slide;
+    const modal = document.getElementById('modal-video-uploader');
+    const descriptionInput = document.getElementById('video-description');
+    const btnDelete = document.getElementById('btn-delete-video');
+    const statusDiv = document.getElementById('video-upload-status');
+
+    // Reset UI
+    descriptionInput.value = slide.video_description || '';
+    statusDiv.textContent = '';
+    document.getElementById('video-file-input').value = '';
+
+    if (slide.video_url) {
+        btnDelete.classList.remove('hidden');
+    } else {
+        btnDelete.classList.add('hidden');
+    }
+
+    modal.classList.remove('hidden');
+
+    // Bind buttons
+    document.getElementById('btn-cancel-video').onclick = () => modal.classList.add('hidden');
+    document.getElementById('video-upload-zone').onclick = () => document.getElementById('video-file-input').click();
+
+    btnDelete.onclick = async () => {
+        if (confirm('Are you sure you want to remove the video from this slide?')) {
+            await deleteVideo(slide.id, slide.video_url);
+            modal.classList.add('hidden');
+        }
+    };
+
+    document.getElementById('btn-save-video').onclick = async () => {
+        const fileInput = document.getElementById('video-file-input');
+        const description = descriptionInput.value;
+        const file = fileInput.files[0];
+
+        if (!file && !slide.video_url) {
+            alert('Please select a video file.');
+            return;
+        }
+
+        const btnSave = document.getElementById('btn-save-video');
+        btnSave.disabled = true;
+        btnSave.textContent = 'Processing...';
+
+        try {
+            let videoUrl = slide.video_url;
+
+            if (file) {
+                statusDiv.textContent = 'Uploading video...';
+                const filePath = `video/${slide.id}_${Date.now()}_${file.name}`;
+                const { error: uploadErr } = await supabaseClient.storage.from('post-assets').upload(filePath, file);
+                if (uploadErr) throw uploadErr;
+
+                const { data: { publicUrl } } = supabaseClient.storage.from('post-assets').getPublicUrl(filePath);
+                videoUrl = publicUrl;
+            }
+
+            statusDiv.textContent = 'Updating database...';
+            const { error: dbErr } = await supabaseClient
+                .from('slides')
+                .update({
+                    video_url: videoUrl,
+                    video_description: description
+                })
+                .eq('id', slide.id);
+
+            if (dbErr) throw dbErr;
+
+            alert('Video updated successfully!');
+            modal.classList.add('hidden');
+
+            // Refresh current view to show changes
+            if (window.location.hash.startsWith('#admin/edit/')) {
+                const postId = window.location.hash.split('/')[2];
+                renderAdminEditGallery(document.getElementById('admin-content'), postId);
+            }
+        } catch (err) {
+            alert('Operation failed: ' + err.message);
+        } finally {
+            btnSave.disabled = false;
+            btnSave.textContent = 'Upload & Tag Slide';
+        }
+    };
+}
+
+async function deleteVideo(slideId, videoUrl) {
+    try {
+        // 1. Storage Cleanup
+        if (videoUrl) {
+            const fileName = videoUrl.split('/').pop();
+            await supabaseClient.storage.from('post-assets').remove([`video/${fileName}`]);
+        }
+
+        // 2. Database Update
+        await supabaseClient.from('slides').update({
+            video_url: null,
+            video_description: null
+        }).eq('id', slideId);
+
+        alert('Video removed successfully.');
+
+        // Refresh UI
+        if (window.location.hash.startsWith('#admin/edit/')) {
+            const postId = window.location.hash.split('/')[2];
+            renderAdminEditGallery(document.getElementById('admin-content'), postId);
+        }
+    } catch (err) {
+        alert('Failed to remove video: ' + err.message);
+    }
+}
