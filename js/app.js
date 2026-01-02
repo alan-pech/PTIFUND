@@ -1435,12 +1435,24 @@ async function openVideoUploader(slide) {
     const modal = document.getElementById('modal-video-uploader');
     const descriptionInput = document.getElementById('video-description');
     const btnDelete = document.getElementById('btn-delete-video');
+    const btnSave = document.getElementById('btn-save-video');
     const statusDiv = document.getElementById('video-upload-status');
+    const uploadZone = document.getElementById('video-upload-zone');
+    const fileInput = document.getElementById('video-file-input');
 
     // Reset UI
     descriptionInput.value = slide.video_description || '';
     statusDiv.textContent = '';
-    document.getElementById('video-file-input').value = '';
+    fileInput.value = '';
+    uploadZone.innerHTML = '<p>🎥 Click to select a video file</p>';
+
+    // Validate and enable/disable upload button
+    const validateForm = () => {
+        const hasDescription = descriptionInput.value.trim().length > 0;
+        const hasFile = fileInput.files.length > 0;
+        const hasExistingVideo = !!slide.video_url;
+        btnSave.disabled = !hasDescription || (!hasFile && !hasExistingVideo);
+    };
 
     if (slide.video_url) {
         btnDelete.classList.remove('hidden');
@@ -1449,10 +1461,25 @@ async function openVideoUploader(slide) {
     }
 
     modal.classList.remove('hidden');
+    validateForm(); // Initial validation
+
+    // Bind file input change
+    fileInput.onchange = (e) => {
+        if (e.target.files.length > 0) {
+            const fileName = e.target.files[0].name;
+            uploadZone.innerHTML = `<p>📹 ${fileName}</p>`;
+        } else {
+            uploadZone.innerHTML = '<p>🎥 Click to select a video file</p>';
+        }
+        validateForm();
+    };
+
+    // Bind description input
+    descriptionInput.oninput = () => validateForm();
 
     // Bind buttons
     document.getElementById('btn-cancel-video').onclick = () => modal.classList.add('hidden');
-    document.getElementById('video-upload-zone').onclick = () => document.getElementById('video-file-input').click();
+    uploadZone.onclick = () => fileInput.click();
 
     btnDelete.onclick = async () => {
         if (await showConfirm('Are you sure you want to remove the video from this slide?')) {
@@ -1461,8 +1488,7 @@ async function openVideoUploader(slide) {
         }
     };
 
-    document.getElementById('btn-save-video').onclick = async () => {
-        const fileInput = document.getElementById('video-file-input');
+    btnSave.onclick = async () => {
         const description = descriptionInput.value;
         const file = fileInput.files[0];
 
@@ -1471,7 +1497,6 @@ async function openVideoUploader(slide) {
             return;
         }
 
-        const btnSave = document.getElementById('btn-save-video');
         btnSave.disabled = true;
         btnSave.textContent = 'Processing...';
 
