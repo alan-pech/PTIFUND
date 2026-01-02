@@ -6,7 +6,7 @@
  */
 
 // --- Constants & State ---
-const APP_VERSION = 'v1.0.008';
+const APP_VERSION = 'v1.0.009';
 const ADMIN_ROUTE_SECRET = 'admin-portal'; // Accessible via index.html#admin-portal
 
 let currentUser = null;
@@ -423,9 +423,15 @@ async function renderAdminPosts(container) {
                     <input type="text" id="new-post-title" placeholder="e.g. February 2026 Update">
                 </div>
                 
-                <div class="upload-zone" id="upload-zone">
-                    <p>📁 Click to select folder of PNG images</p>
-                    <input type="file" id="folder-input" webkitdirectory directory multiple hidden>
+                <div class="upload-options" style="display: flex; gap: 1rem; margin: 1rem 0;">
+                    <div class="upload-zone" id="upload-zone-folder" style="flex: 1;">
+                        <p>📁 Select Folder</p>
+                        <input type="file" id="folder-input" webkitdirectory directory multiple accept=".png, image/png" hidden>
+                    </div>
+                    <div class="upload-zone" id="upload-zone-files" style="flex: 1;">
+                        <p>🖼️ Select Files</p>
+                        <input type="file" id="files-input" multiple accept=".png, image/png" hidden>
+                    </div>
                 </div>
                 
                 <div id="upload-preview" class="upload-preview grid"></div>
@@ -446,21 +452,32 @@ async function renderAdminPosts(container) {
         document.getElementById('modal-new-post').classList.add('hidden');
     };
 
-    const uploadZone = document.getElementById('upload-zone');
+    const uploadZoneFolder = document.getElementById('upload-zone-folder');
+    const uploadZoneFiles = document.getElementById('upload-zone-files');
     const folderInput = document.getElementById('folder-input');
+    const filesInput = document.getElementById('files-input');
     const btnSave = document.getElementById('btn-save-post');
     const titleInput = document.getElementById('new-post-title');
 
-    uploadZone.onclick = () => folderInput.click();
+    let selectedFiles = [];
 
-    folderInput.onchange = (e) => {
-        const files = Array.from(e.target.files).filter(f => f.type === 'image/png');
+    uploadZoneFolder.onclick = () => folderInput.click();
+    uploadZoneFiles.onclick = () => filesInput.click();
+
+    const handleFileChange = (e) => {
+        const files = Array.from(e.target.files)
+            .filter(f => f.type === 'image/png' || f.name.toLowerCase().endsWith('.png'))
+            .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+        selectedFiles = files;
         renderUploadPreview(files);
     };
 
+    folderInput.onchange = handleFileChange;
+    filesInput.onchange = handleFileChange;
+
     btnSave.onclick = async () => {
         const title = titleInput.value;
-        const files = Array.from(folderInput.files).filter(f => f.type === 'image/png');
+        const files = selectedFiles;
 
         if (!title || files.length === 0) {
             alert('Please provide a title and select a folder with PNGs.');
@@ -1127,8 +1144,8 @@ async function renderAdminEditGallery(container, postId) {
         <div class="card">
             <h3>Add More Slides</h3>
             <div class="upload-zone" onclick="document.getElementById('slide-files').click()">
-                <input type="file" id="slide-files" multiple accept="image/*" style="display: none;" onchange="uploadNewSlides('${post.id}')">
-                <p>📁 Click to choose files or drag and drop here</p>
+                <input type="file" id="slide-files" multiple accept=".png, image/png" style="display: none;" onchange="uploadNewSlides('${post.id}')">
+                <p>📁 Click to choose PNG files or drag and drop here</p>
             </div>
             <div id="upload-status" style="margin-top: 1rem; color: var(--color-orange); font-weight: 500;"></div>
         </div>
