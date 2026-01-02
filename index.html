@@ -76,31 +76,31 @@
                     <nav class="sidebar-nav">
                         <a href="#admin/posts" class="nav-item" data-route="posts">
                             <span class="nav-icon">📝</span>
-                            <span class="nav-label">Manage Posts</span>
+                            <span class="nav-label">Posts</span>
                         </a>
                         <a href="#admin/subscribers" class="nav-item" data-route="subscribers">
                             <span class="nav-icon">👥</span>
-                            <span class="nav-label">Subscribers</span>
+                            <span class="nav-label">Supporters</span>
                         </a>
                         <a href="#admin/comments" class="nav-item" data-route="comments">
                             <span class="nav-icon">💬</span>
                             <span class="nav-label">Moderation</span>
                         </a>
+                        <div style="flex: 1;"></div>
+                        <button id="btn-logout" class="logout-btn">
+                            <span class="nav-icon">🚪</span>
+                            <span class="nav-label">Logout</span>
+                        </button>
                     </nav>
                     <div class="sidebar-footer">
-                        <button id="btn-logout" class="btn btn-text logout-btn">
-                            <span class="nav-icon">🚪</span>
-                            <span>Logout</span>
-                        </button>
                         <div id="storage-usage-sidebar" class="storage-usage-sidebar">
                             <div class="storage-info">
                                 <span class="storage-label">Storage:</span>
                                 <span id="storage-value">---</span>
                             </div>
-                            <button id="btn-refresh-storage" class="btn-refresh"
-                                title="Refresh storage usage">🔄</button>
+                            <button id="btn-refresh-storage" class="btn-refresh" title="Refresh usage">🔄</button>
                         </div>
-                        <div class="app-version">v1.0.012</div>
+                        <div class="app-version">v1.0.013</div>
                     </div>
                 </aside>
                 <main id="admin-content" class="admin-main">
