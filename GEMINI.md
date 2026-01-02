@@ -192,7 +192,7 @@ const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 ## Version
 
-Current: `v1.0.005`
+Current: `v1.0.006`
 
 Version displayed in:
 - Admin sidebar footer

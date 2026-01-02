@@ -6,17 +6,30 @@
  */
 
 // --- Constants & State ---
-const APP_VERSION = 'v1.0.005';
+const APP_VERSION = 'v1.0.006';
 const ADMIN_ROUTE_SECRET = 'admin-portal'; // Accessible via index.html#admin-portal
 
 let currentUser = null;
 let currentView = 'home';
 let r2Client = null;
+let S3SDK = null;
 
 // --- S3 / R2 Initialization ---
-function initR2Client() {
+async function ensureS3SDK() {
+    if (S3SDK) return S3SDK;
+    console.log('[R2] Loading AWS SDK v3 via ESM...');
     try {
-        const { S3Client } = window["@aws-sdk/client-s3"];
+        S3SDK = await import("https://cdn.jsdelivr.net/npm/@aws-sdk/client-s3@3.525.0/+esm");
+        return S3SDK;
+    } catch (err) {
+        console.error('[R2] Failed to load AWS SDK:', err);
+        throw err;
+    }
+}
+
+async function initR2Client() {
+    try {
+        const { S3Client } = await ensureS3SDK();
         r2Client = new S3Client({
             region: "auto",
             endpoint: R2_CONFIG.endpoint,
@@ -495,7 +508,7 @@ async function createPostWithSlides(title, files) {
         const file = files[i];
         const filePath = `${post.id}/slide_${i}_${Date.now()}.png`;
 
-        const { PutObjectCommand } = window["@aws-sdk/client-s3"];
+        const { PutObjectCommand } = await ensureS3SDK();
         await r2Client.send(new PutObjectCommand({
             Bucket: R2_CONFIG.bucketName,
             Key: filePath,
@@ -738,7 +751,7 @@ async function uploadAudio(slideId, blob) {
     const filePath = `audio/${slideId}_${Date.now()}.${extension}`;
     console.log('[Audio] Uploading to R2:', filePath, 'Size:', blob.size);
 
-    const { PutObjectCommand } = window["@aws-sdk/client-s3"];
+    const { PutObjectCommand } = await ensureS3SDK();
     await r2Client.send(new PutObjectCommand({
         Bucket: R2_CONFIG.bucketName,
         Key: filePath,
@@ -765,7 +778,7 @@ async function deleteAudio(slideId, audioUrl) {
         // 1. Storage Cleanup (R2)
         if (audioUrl) {
             const path = audioUrl.split(`${R2_CONFIG.publicUrl}/`).pop();
-            const { DeleteObjectCommand } = window["@aws-sdk/client-s3"];
+            const { DeleteObjectCommand } = await ensureS3SDK();
             await r2Client.send(new DeleteObjectCommand({
                 Bucket: R2_CONFIG.bucketName,
                 Key: path
@@ -1237,7 +1250,7 @@ async function uploadNewSlides(postId) {
             const fileName = `${postId}_${Date.now()}_${file.name}`;
             const filePath = `${postId}/slide_${nextIndex}_${Date.now()}.png`;
 
-            const { PutObjectCommand } = window["@aws-sdk/client-s3"];
+            const { PutObjectCommand } = await ensureS3SDK();
             await r2Client.send(new PutObjectCommand({
                 Bucket: R2_CONFIG.bucketName,
                 Key: filePath,
@@ -1371,7 +1384,7 @@ async function openVideoUploader(slide) {
                 statusDiv.textContent = 'Uploading video to R2...';
                 const filePath = `video/${slide.id}_${Date.now()}_${file.name}`;
 
-                const { PutObjectCommand } = window["@aws-sdk/client-s3"];
+                const { PutObjectCommand } = await ensureS3SDK();
                 await r2Client.send(new PutObjectCommand({
                     Bucket: R2_CONFIG.bucketName,
                     Key: filePath,
@@ -1415,7 +1428,7 @@ async function deleteVideo(slideId, videoUrl) {
         // 1. Storage Cleanup (R2)
         if (videoUrl) {
             const path = videoUrl.split(`${R2_CONFIG.publicUrl}/`).pop();
-            const { DeleteObjectCommand } = window["@aws-sdk/client-s3"];
+            const { DeleteObjectCommand } = await ensureS3SDK();
             await r2Client.send(new DeleteObjectCommand({
                 Bucket: R2_CONFIG.bucketName,
                 Key: path
