@@ -232,7 +232,7 @@ async function loadLatestPost() {
             <aside class="slides-thumbnail-sidebar">
                 ${slides.map((slide, index) => `
                     <div class="thumbnail-item" data-slide-index="${index}" onclick="scrollToSlide(${index})">
-                        <img src="${slide.image_url}" alt="Slide ${index + 1}">
+                        Page ${index + 1}
                     </div>
                 `).join('')}
             </aside>
@@ -324,8 +324,10 @@ async function loadPostDetails(id) {
 function scrollToSlide(index) {
     const slideCard = document.querySelector(`.slide-card[data-slide-index="${index}"]`);
     if (slideCard) {
+        // Use scrollIntoView with smooth behavior. 
+        // The offset is handled by scroll-margin-top in CSS.
         slideCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        
+
         // Highlight active thumbnail
         document.querySelectorAll('.thumbnail-item').forEach(item => {
             item.classList.remove('active');
@@ -579,12 +581,12 @@ function initVisualizer(stream) {
     if (!audioRecorder.audioCtx) {
         audioRecorder.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     }
-    
+
     // Resume if suspended
     if (audioRecorder.audioCtx.state === 'suspended') {
         audioRecorder.audioCtx.resume();
     }
-    
+
     const source = audioRecorder.audioCtx.createMediaStreamSource(stream);
     audioRecorder.analyser = audioRecorder.audioCtx.createAnalyser();
     audioRecorder.analyser.fftSize = 2048;
@@ -639,14 +641,14 @@ async function saveAndUploadAudio() {
         alert('No audio data recorded. Please try recording again.');
         return;
     }
-    
+
     console.log('[Audio] Total chunks:', audioRecorder.chunks.length);
-    
+
     // Use the appropriate mime type for the blob
     const mimeType = audioRecorder.recorder.mimeType || 'audio/webm';
     const blob = new Blob(audioRecorder.chunks, { type: mimeType });
     console.log('[Audio] Blob created:', blob.size, 'bytes, type:', blob.type);
-    
+
     const btnSave = document.getElementById('btn-save-record');
     btnSave.textContent = 'Uploading...';
     btnSave.disabled = true;
@@ -684,10 +686,10 @@ async function uploadAudio(slideId, blob) {
     } else if (blob.type.includes('ogg')) {
         extension = 'ogg';
     }
-    
+
     const filePath = `audio/${slideId}_${Date.now()}.${extension}`;
     console.log('[Audio] Uploading to:', filePath, 'Size:', blob.size);
-    
+
     const { error: uploadErr } = await supabaseClient.storage
         .from('post-assets')
         .upload(filePath, blob, {
