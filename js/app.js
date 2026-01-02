@@ -6,7 +6,7 @@
  */
 
 // --- Constants & State ---
-const APP_VERSION = 'v1.0.011';
+const APP_VERSION = 'v1.0.012';
 const ADMIN_ROUTE_SECRET = 'admin-portal'; // Accessible via index.html#admin-portal
 
 let currentUser = null;
@@ -43,6 +43,77 @@ async function initR2Client() {
     } catch (err) {
         console.error('[R2] Failed to initialize storage client:', err);
     }
+}
+
+// --- R2 Storage Usage Monitoring ---
+let storageUsageCache = null;
+
+async function calculateStorageUsage(forceRefresh = false) {
+    if (storageUsageCache && !forceRefresh) return storageUsageCache;
+
+    const btnRefresh = document.getElementById('btn-refresh-storage');
+    if (btnRefresh) btnRefresh.classList.add('spinning');
+
+    try {
+        // Ensure R2 client is ready
+        if (!r2Client) {
+            console.log('[R2] Storage client not ready, initializing...');
+            await initR2Client();
+            if (!r2Client) throw new Error('Failed to initialize storage client');
+        }
+
+        const { ListObjectsV2Command } = await ensureS3SDK();
+        let totalSize = 0;
+        let totalFiles = 0;
+        let continuationToken = null;
+
+        console.log('[R2] Calculating storage usage...');
+
+        do {
+            const command = new ListObjectsV2Command({
+                Bucket: R2_CONFIG.bucketName,
+                ContinuationToken: continuationToken
+            });
+
+            const response = await r2Client.send(command);
+
+            if (response.Contents) {
+                totalFiles += response.Contents.length;
+                totalSize += response.Contents.reduce((sum, obj) => sum + (obj.Size || 0), 0);
+            }
+
+            continuationToken = response.NextContinuationToken;
+        } while (continuationToken);
+
+        const sizeInMB = (totalSize / (1024 * 1024)).toFixed(2);
+        const sizeInGB = (totalSize / (1024 * 1024 * 1024)).toFixed(2);
+
+        storageUsageCache = {
+            totalSize,
+            totalFiles,
+            sizeInMB,
+            sizeInGB,
+            displaySize: sizeInGB >= 1 ? `${sizeInGB} GB` : `${sizeInMB} MB`
+        };
+
+        console.log('[R2] Storage usage calculated:', storageUsageCache);
+        updateStorageUI();
+        return storageUsageCache;
+    } catch (err) {
+        console.error('[R2] Failed to calculate storage usage:', err);
+    } finally {
+        if (btnRefresh) btnRefresh.classList.remove('spinning');
+    }
+}
+
+function updateStorageUI() {
+    const valueEl = document.getElementById('storage-value');
+    if (!valueEl || !storageUsageCache) return;
+    valueEl.textContent = storageUsageCache.displaySize;
+}
+
+function clearStorageCache() {
+    storageUsageCache = null;
 }
 
 // --- UI Feedback (Bespoke Notifications) ---
@@ -132,7 +203,15 @@ document.addEventListener('DOMContentLoaded', () => {
     initAuth();
     initR2Client();
     updateVersionDisplay();
+    initAdminHooks();
 });
+
+function initAdminHooks() {
+    const btnRefresh = document.getElementById('btn-refresh-storage');
+    if (btnRefresh) {
+        btnRefresh.onclick = () => calculateStorageUsage(true);
+    }
+}
 
 // --- Routing ---
 function initRouting() {
@@ -316,6 +395,9 @@ function handleAdminRoutes(hash) {
         default:
             window.location.hash = '#admin/posts';
     }
+
+    // Refresh storage usage if needed
+    calculateStorageUsage();
 }
 
 // --- UI Helpers ---
