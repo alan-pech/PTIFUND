@@ -6,7 +6,7 @@
  */
 
 // --- Constants & State ---
-const APP_VERSION = 'v1.0.013';
+const APP_VERSION = 'v1.0.014';
 const ADMIN_ROUTE_SECRET = 'admin-portal'; // Accessible via index.html#admin-portal
 
 let currentUser = null;
@@ -211,6 +211,7 @@ function initAdminHooks() {
     if (btnRefresh) {
         btnRefresh.onclick = () => calculateStorageUsage(true);
     }
+    initNewPostModal();
 }
 
 // --- Routing ---
@@ -564,63 +565,38 @@ function scrollToSlide(index) {
 // --- Admin Features ---
 async function renderAdminPosts(container) {
     container.innerHTML = `
-        <div class="admin-header-row">
-            <div class="header-left">
-                <h1>Manage Posts</h1>
-            </div>
-            <button id="btn-new-post" class="btn btn-primary">+ New Post</button>
-        </div>
-        
         <div class="card">
             <div id="admin-posts-list" class="admin-list">
                 <div class="loader">Loading posts...</div>
             </div>
         </div>
-        
-        <!-- New Post Modal (Hidden) -->
-        <div id="modal-new-post" class="modal hidden">
-            <div class="modal-content card">
-                <h3>Create New Post</h3>
-                <div class="input-group">
-                    <label>Post Title</label>
-                    <input type="text" id="new-post-title" placeholder="e.g. February 2026 Update">
-                </div>
-                
-                <div class="upload-options" style="display: flex; gap: 1rem; margin: 1rem 0;">
-                    <div class="upload-zone" id="upload-zone-folder" style="flex: 1;">
-                        <p>📁 Select Folder</p>
-                        <input type="file" id="folder-input" webkitdirectory directory multiple accept=".png, image/png" hidden>
-                    </div>
-                    <div class="upload-zone" id="upload-zone-files" style="flex: 1;">
-                        <p>🖼️ Select Files</p>
-                        <input type="file" id="files-input" multiple accept=".png, image/png" hidden>
-                    </div>
-                </div>
-                
-                <div id="upload-preview" class="upload-preview grid"></div>
-                
-                <div class="modal-actions">
-                    <button class="btn btn-text" id="btn-cancel-post">Cancel</button>
-                    <button class="btn btn-primary" id="btn-save-post">Create Post & Upload</button>
-                </div>
-            </div>
-        </div>
     `;
 
-    // Bind events
-    document.getElementById('btn-new-post').onclick = () => {
-        document.getElementById('modal-new-post').classList.remove('hidden');
-    };
-    document.getElementById('btn-cancel-post').onclick = () => {
-        document.getElementById('modal-new-post').classList.add('hidden');
-    };
+    loadAdminPosts();
+}
 
-    const uploadZoneFolder = document.getElementById('upload-zone-folder');
-    const uploadZoneFiles = document.getElementById('upload-zone-files');
-    const folderInput = document.getElementById('folder-input');
-    const filesInput = document.getElementById('files-input');
+function initNewPostModal() {
+    const btnNewPost = document.getElementById('btn-sidebar-new-post');
+    const modal = document.getElementById('modal-new-post');
+    const btnCancel = document.getElementById('btn-cancel-post');
     const btnSave = document.getElementById('btn-save-post');
     const titleInput = document.getElementById('new-post-title');
+    const folderInput = document.getElementById('folder-input');
+    const filesInput = document.getElementById('files-input');
+    const uploadZoneFolder = document.getElementById('upload-zone-folder');
+    const uploadZoneFiles = document.getElementById('upload-zone-files');
+
+    if (!btnNewPost || !modal) return;
+
+    btnNewPost.onclick = () => {
+        modal.classList.remove('hidden');
+        titleInput.value = '';
+        document.getElementById('upload-preview').innerHTML = '';
+    };
+
+    btnCancel.onclick = () => {
+        modal.classList.add('hidden');
+    };
 
     let selectedFiles = [];
 
@@ -652,8 +628,10 @@ async function renderAdminPosts(container) {
 
         try {
             await createPostWithSlides(title, files);
-            document.getElementById('modal-new-post').classList.add('hidden');
-            loadAdminPosts();
+            modal.classList.add('hidden');
+            if (window.location.hash === '#admin/posts') {
+                loadAdminPosts();
+            }
         } catch (err) {
             showToast(`Upload failed: ${err.message}`, 'error');
         } finally {
@@ -661,8 +639,6 @@ async function renderAdminPosts(container) {
             btnSave.textContent = 'Create Post & Upload';
         }
     };
-
-    loadAdminPosts();
 }
 
 // --- Bulk Upload Logic ---

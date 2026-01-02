@@ -276,6 +276,14 @@ textarea {
     gap: 0.5rem;
 }
 
+.sidebar-action-btn {
+    width: 100%;
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    font-size: 1.1rem;
+    box-shadow: 0 4px 12px rgba(211, 84, 0, 0.2);
+}
+
 .nav-item {
     display: flex;
     align-items: center;

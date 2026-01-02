@@ -74,6 +74,7 @@
                         <h3>Admin</h3>
                     </div>
                     <nav class="sidebar-nav">
+                        <button id="btn-sidebar-new-post" class="btn btn-primary sidebar-action-btn">+ New Post</button>
                         <a href="#admin/posts" class="nav-item" data-route="posts">
                             <span class="nav-icon">📝</span>
                             <span class="nav-label">Posts</span>
@@ -100,7 +101,7 @@
                             </div>
                             <button id="btn-refresh-storage" class="btn-refresh" title="Refresh usage">🔄</button>
                         </div>
-                        <div class="app-version">v1.0.013</div>
+                        <div class="app-version">v1.0.014</div>
                     </div>
                 </aside>
                 <main id="admin-content" class="admin-main">
@@ -151,6 +152,36 @@
                     <button class="btn btn-text" id="btn-cancel-video">Cancel</button>
                     <button class="btn btn-primary" id="btn-save-video">Upload & Tag Slide</button>
                     <button class="btn btn-text delete hidden" id="btn-delete-video">Remove Video</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- New Post Modal (Global) -->
+        <div id="modal-new-post" class="modal hidden">
+            <div class="modal-content card">
+                <h3>Create New Post</h3>
+                <div class="input-group">
+                    <label>Post Title</label>
+                    <input type="text" id="new-post-title" placeholder="e.g. February 2026 Update">
+                </div>
+
+                <div class="upload-options" style="display: flex; gap: 1rem; margin: 1rem 0;">
+                    <div class="upload-zone" id="upload-zone-folder" style="flex: 1;">
+                        <p>📁 Select Folder</p>
+                        <input type="file" id="folder-input" webkitdirectory directory multiple accept=".png, image/png"
+                            hidden>
+                    </div>
+                    <div class="upload-zone" id="upload-zone-files" style="flex: 1;">
+                        <p>🖼️ Select Files</p>
+                        <input type="file" id="files-input" multiple accept=".png, image/png" hidden>
+                    </div>
+                </div>
+
+                <div id="upload-preview" class="upload-preview grid"></div>
+
+                <div class="modal-actions">
+                    <button class="btn btn-text" id="btn-cancel-post">Cancel</button>
+                    <button class="btn btn-primary" id="btn-save-post">Create Post & Upload</button>
                 </div>
             </div>
         </div>
