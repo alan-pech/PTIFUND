@@ -246,6 +246,12 @@ async function loadLatestPost() {
                                     <audio controls src="${slide.audio_url}"></audio>
                                 </div>
                             ` : ''}
+                            ${slide.video_url ? `
+                                <div class="video-detail">
+                                    <video controls src="${slide.video_url}" class="video-player" preload="metadata"></video>
+                                    ${slide.video_description ? `<div class="video-description">${slide.video_description}</div>` : ''}
+                                </div>
+                            ` : ''}
                         </div>
                     `).join('')}
                 </div>
@@ -291,7 +297,7 @@ async function loadPostDetails(id) {
             <aside class="slides-thumbnail-sidebar">
                 ${slides.map((slide, index) => `
                     <div class="thumbnail-item" data-slide-index="${index}" onclick="scrollToSlide(${index})">
-                        <img src="${slide.image_url}" alt="Slide ${index + 1}">
+                        Page ${index + 1}
                     </div>
                 `).join('')}
             </aside>
@@ -303,6 +309,12 @@ async function loadPostDetails(id) {
                             ${slide.audio_url ? `
                                 <div class="audio-wrapper">
                                     <audio controls src="${slide.audio_url}"></audio>
+                                </div>
+                            ` : ''}
+                            ${slide.video_url ? `
+                                <div class="video-detail">
+                                    <video controls src="${slide.video_url}" class="video-player" preload="metadata"></video>
+                                    ${slide.video_description ? `<div class="video-description">${slide.video_description}</div>` : ''}
                                 </div>
                             ` : ''}
                         </div>
@@ -853,6 +865,11 @@ function showContextMenu(x, y, slide) {
         menu.remove();
     };
 
+    document.getElementById('menu-video-action').onclick = () => {
+        openVideoUploader(slide);
+        menu.remove();
+    };
+
     document.getElementById('menu-delete-slide').onclick = () => {
         deleteSlide(slide.id);
         menu.remove();
@@ -1037,9 +1054,10 @@ async function renderAdminEditGallery(container, postId) {
             <div id="gallery-container" class="slides-grid">
                 ${(slides || []).map(slide => `
                     <div class="slide-card-wrapper">
-                        <div class="gallery-item" draggable="true" data-id="${slide.id}" data-image="${slide.image_url}" data-audio="${slide.audio_url || ''}">
+                        <div class="gallery-item" draggable="true" data-id="${slide.id}" data-image="${slide.image_url}" data-audio="${slide.audio_url || ''}" data-video="${slide.video_url || ''}" data-video-description="${slide.video_description || ''}">
                             <img src="${slide.image_url}" loading="lazy">
                             ${slide.audio_url ? '<div class="audio-badge">♪</div>' : ''}
+                            ${slide.video_url ? '<div class="video-badge">🎥</div>' : ''}
                         </div>
                         <div class="slide-label">Slide ${slide.order_index + 1}</div>
                     </div>
@@ -1112,7 +1130,9 @@ function initDragAndDrop(postId) {
             const slide = {
                 id: item.dataset.id,
                 image_url: item.dataset.image,
-                audio_url: item.dataset.audio || null
+                audio_url: item.dataset.audio || null,
+                video_url: item.dataset.video || null,
+                video_description: item.dataset.videoDescription || null
             };
             showContextMenu(e.pageX, e.pageY, slide, postId);
         }
@@ -1238,6 +1258,121 @@ async function deletePost(id) {
     if (!confirm('Are you sure you want to delete this post? This will remove all slides and audio from storage.')) return;
 
     const { error } = await supabaseClient.from('posts').delete().eq('id', id);
+
+    // --- Video Upload Logic ---
+    let currentVideoSlide = null;
+
+    async function openVideoUploader(slide) {
+        currentVideoSlide = slide;
+        const modal = document.getElementById('modal-video-uploader');
+        const descriptionInput = document.getElementById('video-description');
+        const btnDelete = document.getElementById('btn-delete-video');
+        const statusDiv = document.getElementById('video-upload-status');
+
+        // Reset UI
+        descriptionInput.value = slide.video_description || '';
+        statusDiv.textContent = '';
+        document.getElementById('video-file-input').value = '';
+
+        if (slide.video_url) {
+            btnDelete.classList.remove('hidden');
+        } else {
+            btnDelete.classList.add('hidden');
+        }
+
+        modal.classList.remove('hidden');
+
+        // Bind buttons
+        document.getElementById('btn-cancel-video').onclick = () => modal.classList.add('hidden');
+        document.getElementById('video-upload-zone').onclick = () => document.getElementById('video-file-input').click();
+
+        btnDelete.onclick = async () => {
+            if (confirm('Are you sure you want to remove the video from this slide?')) {
+                await deleteVideo(slide.id, slide.video_url);
+                modal.classList.add('hidden');
+            }
+        };
+
+        document.getElementById('btn-save-video').onclick = async () => {
+            const fileInput = document.getElementById('video-file-input');
+            const description = descriptionInput.value;
+            const file = fileInput.files[0];
+
+            if (!file && !slide.video_url) {
+                alert('Please select a video file.');
+                return;
+            }
+
+            const btnSave = document.getElementById('btn-save-video');
+            btnSave.disabled = true;
+            btnSave.textContent = 'Processing...';
+
+            try {
+                let videoUrl = slide.video_url;
+
+                if (file) {
+                    statusDiv.textContent = 'Uploading video...';
+                    const filePath = `video/${slide.id}_${Date.now()}_${file.name}`;
+                    const { error: uploadErr } = await supabaseClient.storage.from('post-assets').upload(filePath, file);
+                    if (uploadErr) throw uploadErr;
+
+                    const { data: { publicUrl } } = supabaseClient.storage.from('post-assets').getPublicUrl(filePath);
+                    videoUrl = publicUrl;
+                }
+
+                statusDiv.textContent = 'Updating database...';
+                const { error: dbErr } = await supabaseClient
+                    .from('slides')
+                    .update({
+                        video_url: videoUrl,
+                        video_description: description
+                    })
+                    .eq('id', slide.id);
+
+                if (dbErr) throw dbErr;
+
+                alert('Video updated successfully!');
+                modal.classList.add('hidden');
+
+                // Refresh current view to show changes
+                if (window.location.hash.startsWith('#admin/edit/')) {
+                    const postId = window.location.hash.split('/')[2];
+                    renderAdminEditGallery(document.getElementById('admin-content'), postId);
+                }
+            } catch (err) {
+                alert('Operation failed: ' + err.message);
+            } finally {
+                btnSave.disabled = false;
+                btnSave.textContent = 'Upload & Tag Slide';
+            }
+        };
+    }
+
+    async function deleteVideo(slideId, videoUrl) {
+        try {
+            // 1. Storage Cleanup
+            if (videoUrl) {
+                const fileName = videoUrl.split('/').pop();
+                await supabaseClient.storage.from('post-assets').remove([`video/${fileName}`]);
+            }
+
+            // 2. Database Update
+            await supabaseClient.from('slides').update({
+                video_url: null,
+                video_description: null
+            }).eq('id', slideId);
+
+            alert('Video removed successfully.');
+
+            // Refresh UI
+            if (window.location.hash.startsWith('#admin/edit/')) {
+                const postId = window.location.hash.split('/')[2];
+                renderAdminEditGallery(document.getElementById('admin-content'), postId);
+            }
+        } catch (err) {
+            alert('Failed to remove video: ' + err.message);
+        }
+    }
 
     if (error) alert('Error: ' + error.message);
     else loadAdminPosts();

@@ -506,7 +506,44 @@ textarea {
     pointer-events: none;
 }
 
-/* Footer */
+.video-badge {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    background: var(--color-orange);
+    color: white;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    font-weight: bold;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    pointer-events: none;
+}
+
+.video-detail {
+    margin-top: 1.5rem;
+    padding: 1.5rem;
+    background: #f1f5f9;
+    border-radius: 12px;
+}
+
+.video-description {
+    margin-top: 1rem;
+    font-size: 0.95rem;
+    color: #475569;
+    font-style: italic;
+}
+
+.video-player {
+    width: 100%;
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+}
+
 .app-footer {
     text-align: center;
     padding: 2rem;

@@ -115,6 +115,35 @@
                 </div>
             </div>
         </div>
+        <!-- Video Uploader Modal -->
+        <div id="modal-video-uploader" class="modal hidden">
+            <div class="modal-content card">
+                <h3>Add/Edit Video</h3>
+                <div class="input-group" style="margin-top: 1rem;">
+                    <label>Video File (MP4, WebM)</label>
+                    <div class="upload-zone" id="video-upload-zone">
+                        <p>🎥 Click to select a video file</p>
+                        <input type="file" id="video-file-input" accept="video/*" hidden>
+                    </div>
+                </div>
+
+                <div class="input-group" style="margin-top: 1rem;">
+                    <label>Video Description</label>
+                    <textarea id="video-description"
+                        placeholder="e.g. This video shows the local community gathering for the update..."
+                        style="min-height: 100px;"></textarea>
+                </div>
+
+                <div id="video-upload-status" style="margin-top: 1rem; color: var(--color-orange); font-weight: 500;">
+                </div>
+
+                <div class="modal-actions">
+                    <button class="btn btn-text" id="btn-cancel-video">Cancel</button>
+                    <button class="btn btn-primary" id="btn-save-video">Upload & Tag Slide</button>
+                    <button class="btn btn-text delete hidden" id="btn-delete-video">Remove Video</button>
+                </div>
+            </div>
+        </div>
     </main>
 
     <footer class="app-footer">
