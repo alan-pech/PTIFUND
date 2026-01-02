@@ -6,7 +6,7 @@
  */
 
 // --- Constants & State ---
-const APP_VERSION = 'v1.0.009';
+const APP_VERSION = 'v1.0.010';
 const ADMIN_ROUTE_SECRET = 'admin-portal'; // Accessible via index.html#admin-portal
 
 let currentUser = null;
@@ -33,6 +33,7 @@ async function initR2Client() {
         r2Client = new S3Client({
             region: "auto",
             endpoint: R2_CONFIG.endpoint,
+            forcePathStyle: true,
             credentials: {
                 accessKeyId: R2_CONFIG.accessKeyId,
                 secretAccessKey: R2_CONFIG.secretAccessKey,
