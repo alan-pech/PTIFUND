@@ -276,15 +276,9 @@ textarea {
     gap: 0.5rem;
 }
 
-.sidebar-action-btn {
-    width: 100%;
-    margin-bottom: 1.5rem;
-    padding: 1rem;
-    font-size: 1.1rem;
-    box-shadow: 0 4px 12px rgba(211, 84, 0, 0.2);
-}
-
-.nav-item {
+.sidebar-btn,
+.nav-item,
+.logout-btn {
     display: flex;
     align-items: center;
     gap: 1rem;
@@ -295,10 +289,29 @@ textarea {
     font-weight: 500;
     transition: all 0.2s ease;
     cursor: pointer;
+    width: 100%;
+    border: none;
+    background: none;
+    font-family: inherit;
+    font-size: 1rem;
     margin-bottom: 0.25rem;
+    box-sizing: border-box;
 }
 
-.nav-item:hover {
+.primary-action {
+    background: var(--color-orange) !important;
+    color: white !important;
+    margin-bottom: 1.5rem !important;
+    box-shadow: 0 4px 12px rgba(211, 84, 0, 0.2);
+}
+
+.primary-action:hover {
+    background-color: #A04000 !important;
+    transform: translateY(-2px);
+}
+
+.nav-item:hover,
+.logout-btn:hover {
     background: #f1f5f9;
     color: var(--color-dark);
 }
@@ -306,6 +319,11 @@ textarea {
 .nav-item.active {
     background: rgba(211, 84, 0, 0.08);
     color: var(--color-orange);
+}
+
+.logout-btn:hover {
+    background: #fff1f1;
+    color: #e74c3c;
 }
 
 .nav-icon {
@@ -326,24 +344,8 @@ textarea {
 }
 
 .logout-btn {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    padding: 0.85rem 1.25rem;
-    border-radius: 12px;
-    background: none;
-    border: none;
-    color: #64748b;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s;
+    margin-top: auto;
     margin-bottom: 2rem;
-}
-
-.logout-btn:hover {
-    background: #fff1f1;
-    color: #e74c3c;
 }
 
 .app-version {
