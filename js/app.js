@@ -6,7 +6,7 @@
  */
 
 // --- Constants & State ---
-const APP_VERSION = 'v1.0.007';
+const APP_VERSION = 'v1.0.008';
 const ADMIN_ROUTE_SECRET = 'admin-portal'; // Accessible via index.html#admin-portal
 
 let currentUser = null;
@@ -19,7 +19,7 @@ async function ensureS3SDK() {
     if (S3SDK) return S3SDK;
     console.log('[R2] Loading AWS SDK v3 via ESM...');
     try {
-        S3SDK = await import("https://esm.sh/@aws-sdk/client-s3@3.525.0");
+        S3SDK = await import("https://esm.sh/@aws-sdk/client-s3@3.525.0?bundle&target=browser");
         return S3SDK;
     } catch (err) {
         console.error('[R2] Failed to load AWS SDK:', err);
