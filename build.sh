@@ -5,7 +5,6 @@
 echo "Building config.js from template..."
 
 # Replace placeholders with environment variables
-# Handle both SUPABASE_KEY and SUPABASE_ANON_KEY for convenience
 SB_KEY=${SUPABASE_KEY:-$SUPABASE_ANON_KEY}
 
 if [ -z "$SUPABASE_URL" ] || [ -z "$SB_KEY" ]; then
@@ -13,7 +12,12 @@ if [ -z "$SUPABASE_URL" ] || [ -z "$SB_KEY" ]; then
   exit 1
 fi
 
-sed "s|{{SUPABASE_URL}}|$SUPABASE_URL|g; s|{{SUPABASE_KEY}}|$SB_KEY|g" js/config.template.js > js/config.js
+sed "s|{{SUPABASE_URL}}|$SUPABASE_URL|g; \
+     s|{{SUPABASE_KEY}}|$SB_KEY|g; \
+     s|{{R2_ACCESS_KEY_ID}}|$R2_ACCESS_KEY_ID|g; \
+     s|{{R2_SECRET_ACCESS_KEY}}|$R2_SECRET_ACCESS_KEY|g; \
+     s|{{R2_ENDPOINT}}|$R2_ENDPOINT|g; \
+     s|{{R2_BUCKET_NAME}}|$R2_BUCKET_NAME|g; \
+     s|{{R2_PUBLIC_URL}}|$R2_PUBLIC_URL|g" js/config.template.js > js/config.js
 
 echo "config.js generated successfully"
-# cat js/config.js | sed 's/key = .*/key = "HIDDEN"/' # Optional: mask key in logs

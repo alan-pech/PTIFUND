@@ -878,3 +878,40 @@ textarea {
         grid-template-columns: 1fr;
     }
 }
+/* Video.js Custom Styling */
+.video-js.vjs-theme-city {
+    --vjs-theme-city--primary: var(--color-orange);
+    --vjs-theme-city--secondary: #fff;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+}
+
+.video-js .vjs-big-play-button {
+    background-color: rgba(211, 84, 0, 0.8) !important;
+    border-color: var(--color-orange) !important;
+    width: 2em !important;
+    height: 2em !important;
+    line-height: 2em !important;
+    border-radius: 50% !important;
+}
+
+.video-js:hover .vjs-big-play-button {
+    background-color: var(--color-orange) !important;
+}
+
+.video-js .vjs-play-progress {
+    background-color: var(--color-orange) !important;
+}
+
+.video-js .vjs-volume-level {
+    background-color: var(--color-orange) !important;
+}
+
+.video-detail {
+    margin-top: 1.5rem;
+    padding: 1rem;
+    background: #f8fafc;
+    border-radius: 16px;
+    border: 1px solid #e2e8f0;
+}

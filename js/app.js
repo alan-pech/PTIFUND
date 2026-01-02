@@ -6,17 +6,37 @@
  */
 
 // --- Constants & State ---
-const APP_VERSION = 'v1.0.004';
+const APP_VERSION = 'v1.0.005';
 const ADMIN_ROUTE_SECRET = 'admin-portal'; // Accessible via index.html#admin-portal
 
 let currentUser = null;
 let currentView = 'home';
+let r2Client = null;
+
+// --- S3 / R2 Initialization ---
+function initR2Client() {
+    try {
+        const { S3Client } = window["@aws-sdk/client-s3"];
+        r2Client = new S3Client({
+            region: "auto",
+            endpoint: R2_CONFIG.endpoint,
+            credentials: {
+                accessKeyId: R2_CONFIG.accessKeyId,
+                secretAccessKey: R2_CONFIG.secretAccessKey,
+            },
+        });
+        console.log('[R2] Storage client initialized');
+    } catch (err) {
+        console.error('[R2] Failed to initialize storage client:', err);
+    }
+}
 
 // --- Initialization ---
 document.addEventListener('DOMContentLoaded', () => {
     console.log(`[${new Date().toISOString()}] App initializing version ${APP_VERSION}`);
     initRouting();
     initAuth();
+    initR2Client();
     updateVersionDisplay();
 });
 
@@ -248,7 +268,13 @@ async function loadLatestPost() {
                             ` : ''}
                             ${slide.video_url ? `
                                 <div class="video-detail">
-                                    <video controls src="${slide.video_url}" class="video-player" preload="metadata"></video>
+                                    <video class="video-js vjs-big-play-centered vjs-theme-city" controls preload="auto" width="640" height="360">
+                                        <source src="${slide.video_url}" type="video/mp4">
+                                        <p class="vjs-no-js">
+                                            To view this video please enable JavaScript, and consider upgrading to a web browser that
+                                            <a href="https://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a>
+                                        </p>
+                                    </video>
                                     ${slide.video_description ? `<div class="video-description">${slide.video_description}</div>` : ''}
                                 </div>
                             ` : ''}
@@ -260,6 +286,7 @@ async function loadLatestPost() {
     `;
 
     loadComments(post.id);
+    initVideoPlayers();
 }
 
 async function loadArchive() {
@@ -313,7 +340,13 @@ async function loadPostDetails(id) {
                             ` : ''}
                             ${slide.video_url ? `
                                 <div class="video-detail">
-                                    <video controls src="${slide.video_url}" class="video-player" preload="metadata"></video>
+                                    <video class="video-js vjs-big-play-centered vjs-theme-city" controls preload="auto" width="640" height="360">
+                                        <source src="${slide.video_url}" type="video/mp4">
+                                        <p class="vjs-no-js">
+                                            To view this video please enable JavaScript, and consider upgrading to a web browser that
+                                            <a href="https://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a>
+                                        </p>
+                                    </video>
                                     ${slide.video_description ? `<div class="video-description">${slide.video_description}</div>` : ''}
                                 </div>
                             ` : ''}
@@ -325,6 +358,7 @@ async function loadPostDetails(id) {
     `;
 
     loadComments(id);
+    initVideoPlayers();
 
     // If admin is viewing, allow editing/audio tagging
     if (currentUser) {
@@ -461,13 +495,15 @@ async function createPostWithSlides(title, files) {
         const file = files[i];
         const filePath = `${post.id}/slide_${i}_${Date.now()}.png`;
 
-        const { error: uploadErr } = await supabaseClient.storage
-            .from('post-assets')
-            .upload(filePath, file);
+        const { PutObjectCommand } = window["@aws-sdk/client-s3"];
+        await r2Client.send(new PutObjectCommand({
+            Bucket: R2_CONFIG.bucketName,
+            Key: filePath,
+            Body: file,
+            ContentType: file.type
+        }));
 
-        if (uploadErr) throw uploadErr;
-
-        const { data: { publicUrl } } = supabaseClient.storage.from('post-assets').getPublicUrl(filePath);
+        const publicUrl = `${R2_CONFIG.publicUrl}/${filePath}`;
 
         await supabaseClient.from('slides').insert([{
             post_id: post.id,
@@ -475,7 +511,7 @@ async function createPostWithSlides(title, files) {
             order_index: i
         }]);
 
-        console.log(`[Upload] Slide ${i + 1}/${files.length} uploaded.`);
+        console.log(`[Upload] Slide ${i + 1}/${files.length} uploaded to R2.`);
     }
 }
 
@@ -700,18 +736,18 @@ async function uploadAudio(slideId, blob) {
     }
 
     const filePath = `audio/${slideId}_${Date.now()}.${extension}`;
-    console.log('[Audio] Uploading to:', filePath, 'Size:', blob.size);
+    console.log('[Audio] Uploading to R2:', filePath, 'Size:', blob.size);
 
-    const { error: uploadErr } = await supabaseClient.storage
-        .from('post-assets')
-        .upload(filePath, blob, {
-            contentType: blob.type
-        });
+    const { PutObjectCommand } = window["@aws-sdk/client-s3"];
+    await r2Client.send(new PutObjectCommand({
+        Bucket: R2_CONFIG.bucketName,
+        Key: filePath,
+        Body: blob,
+        ContentType: blob.type
+    }));
 
-    if (uploadErr) throw uploadErr;
-
-    const { data: { publicUrl } } = supabaseClient.storage.from('post-assets').getPublicUrl(filePath);
-    console.log('[Audio] Uploaded successfully:', publicUrl);
+    const publicUrl = `${R2_CONFIG.publicUrl}/${filePath}`;
+    console.log('[Audio] Uploaded successfully to R2:', publicUrl);
 
     const { error: dbErr } = await supabaseClient
         .from('slides')
@@ -726,10 +762,15 @@ async function deleteAudio(slideId, audioUrl) {
     if (!confirm('Are you sure you want to delete this audio recording?')) return;
 
     try {
-        // 1. Storage Cleanup
+        // 1. Storage Cleanup (R2)
         if (audioUrl) {
-            const path = audioUrl.split('/').pop();
-            await supabaseClient.storage.from('post-assets').remove([`audio/${path}`]);
+            const path = audioUrl.split(`${R2_CONFIG.publicUrl}/`).pop();
+            const { DeleteObjectCommand } = window["@aws-sdk/client-s3"];
+            await r2Client.send(new DeleteObjectCommand({
+                Bucket: R2_CONFIG.bucketName,
+                Key: path
+            }));
+            console.log('[R2] Audio deleted from storage:', path);
         }
 
         // 2. Database Update
@@ -1196,11 +1237,15 @@ async function uploadNewSlides(postId) {
             const fileName = `${postId}_${Date.now()}_${file.name}`;
             const filePath = `${postId}/slide_${nextIndex}_${Date.now()}.png`;
 
-            const { data, error } = await supabaseClient.storage.from('post-assets').upload(filePath, file);
-            if (error) throw error;
+            const { PutObjectCommand } = window["@aws-sdk/client-s3"];
+            await r2Client.send(new PutObjectCommand({
+                Bucket: R2_CONFIG.bucketName,
+                Key: filePath,
+                Body: file,
+                ContentType: file.type
+            }));
 
-            const { data: { publicUrl } } = supabaseClient.storage.from('post-assets').getPublicUrl(filePath);
-            const imageUrl = publicUrl;
+            const imageUrl = `${R2_CONFIG.publicUrl}/${filePath}`;
 
             await supabaseClient.from('slides').insert({
                 post_id: postId,
@@ -1323,13 +1368,18 @@ async function openVideoUploader(slide) {
             let videoUrl = slide.video_url;
 
             if (file) {
-                statusDiv.textContent = 'Uploading video...';
+                statusDiv.textContent = 'Uploading video to R2...';
                 const filePath = `video/${slide.id}_${Date.now()}_${file.name}`;
-                const { error: uploadErr } = await supabaseClient.storage.from('post-assets').upload(filePath, file);
-                if (uploadErr) throw uploadErr;
 
-                const { data: { publicUrl } } = supabaseClient.storage.from('post-assets').getPublicUrl(filePath);
-                videoUrl = publicUrl;
+                const { PutObjectCommand } = window["@aws-sdk/client-s3"];
+                await r2Client.send(new PutObjectCommand({
+                    Bucket: R2_CONFIG.bucketName,
+                    Key: filePath,
+                    Body: file,
+                    ContentType: file.type
+                }));
+
+                videoUrl = `${R2_CONFIG.publicUrl}/${filePath}`;
             }
 
             statusDiv.textContent = 'Updating database...';
@@ -1362,10 +1412,15 @@ async function openVideoUploader(slide) {
 
 async function deleteVideo(slideId, videoUrl) {
     try {
-        // 1. Storage Cleanup
+        // 1. Storage Cleanup (R2)
         if (videoUrl) {
-            const fileName = videoUrl.split('/').pop();
-            await supabaseClient.storage.from('post-assets').remove([`video/${fileName}`]);
+            const path = videoUrl.split(`${R2_CONFIG.publicUrl}/`).pop();
+            const { DeleteObjectCommand } = window["@aws-sdk/client-s3"];
+            await r2Client.send(new DeleteObjectCommand({
+                Bucket: R2_CONFIG.bucketName,
+                Key: path
+            }));
+            console.log('[R2] Video deleted from storage:', path);
         }
 
         // 2. Database Update
@@ -1384,4 +1439,20 @@ async function deleteVideo(slideId, videoUrl) {
     } catch (err) {
         alert('Failed to remove video: ' + err.message);
     }
+}
+
+// --- Video.js Integration ---
+function initVideoPlayers() {
+    // Look for all video-js elements and initialize them
+    document.querySelectorAll('.video-js').forEach(videoEl => {
+        // Avoid double initialization
+        if (!videoEl.classList.contains('vjs-initialized')) {
+            videojs(videoEl, {
+                fluid: true,
+                responsive: true,
+                playbackRates: [0.5, 1, 1.5, 2]
+            });
+            videoEl.classList.add('vjs-initialized');
+        }
+    });
 }
