@@ -92,7 +92,7 @@
                             <span class="nav-icon">🚪</span>
                             <span>Logout</span>
                         </button>
-                        <div class="app-version">v1.0.010</div>
+                        <div class="app-version">v1.0.011</div>
                     </div>
                 </aside>
                 <main id="admin-content" class="admin-main">
@@ -152,6 +152,36 @@
         <div class="version">v1.0.001</div>
         <p>&copy; 2026 Project Timothy Fund Uganda</p>
     </footer>
+
+    <!-- Custom Notifications Container -->
+    <div id="notification-container" class="notification-container"></div>
+
+    <!-- Custom Confirm Modal -->
+    <div id="modal-confirm" class="modal hidden">
+        <div class="modal-content card confirm-modal">
+            <h3 id="confirm-title">Confirm Action</h3>
+            <p id="confirm-message" style="margin: 1.5rem 0; color: var(--color-dark); opacity: 0.8;"></p>
+            <div class="modal-actions" style="justify-content: flex-end; gap: 1rem;">
+                <button class="btn btn-text" id="btn-confirm-cancel">Cancel</button>
+                <button class="btn btn-primary" id="btn-confirm-ok">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Prompt Modal -->
+    <div id="modal-prompt" class="modal hidden">
+        <div class="modal-content card confirm-modal">
+            <h3 id="prompt-title">Input Required</h3>
+            <p id="prompt-message" style="margin: 1rem 0; color: var(--color-dark); opacity: 0.8;"></p>
+            <div class="input-group" style="margin-bottom: 1.5rem;">
+                <input type="text" id="prompt-input" style="width: 100%;">
+            </div>
+            <div class="modal-actions" style="justify-content: flex-end; gap: 1rem;">
+                <button class="btn btn-text" id="btn-prompt-cancel">Cancel</button>
+                <button class="btn btn-primary" id="btn-prompt-ok">Submit</button>
+            </div>
+        </div>
+    </div>
 
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>

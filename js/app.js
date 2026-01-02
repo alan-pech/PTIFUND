@@ -6,7 +6,7 @@
  */
 
 // --- Constants & State ---
-const APP_VERSION = 'v1.0.010';
+const APP_VERSION = 'v1.0.011';
 const ADMIN_ROUTE_SECRET = 'admin-portal'; // Accessible via index.html#admin-portal
 
 let currentUser = null;
@@ -43,6 +43,86 @@ async function initR2Client() {
     } catch (err) {
         console.error('[R2] Failed to initialize storage client:', err);
     }
+}
+
+// --- UI Feedback (Bespoke Notifications) ---
+function showToast(message, type = 'info') {
+    const container = document.getElementById('notification-container');
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+
+    let icon = 'ℹ️';
+    if (type === 'success') icon = '✅';
+    if (type === 'error') icon = '❌';
+    if (type === 'warning') icon = '⚠️';
+
+    toast.innerHTML = `
+        <span class="toast-icon">${icon}</span>
+        <span class="toast-message">${message}</span>
+    `;
+
+    container.appendChild(toast);
+
+    // Auto-remove after 4 seconds
+    setTimeout(() => {
+        toast.classList.add('fade-out');
+        setTimeout(() => toast.remove(), 400);
+    }, 4000);
+}
+
+function showConfirm(message, title = 'Confirm Action') {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('modal-confirm');
+        const titleEl = document.getElementById('confirm-title');
+        const msgEl = document.getElementById('confirm-message');
+        const btnOk = document.getElementById('btn-confirm-ok');
+        const btnCancel = document.getElementById('btn-confirm-cancel');
+
+        titleEl.textContent = title;
+        msgEl.textContent = message;
+        modal.classList.remove('hidden');
+
+        const cleanup = (result) => {
+            modal.classList.add('hidden');
+            btnOk.onclick = null;
+            btnCancel.onclick = null;
+            resolve(result);
+        };
+
+        btnOk.onclick = () => cleanup(true);
+        btnCancel.onclick = () => cleanup(false);
+    });
+}
+
+function showPrompt(message, title = 'Input Required', defaultValue = '') {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('modal-prompt');
+        const titleEl = document.getElementById('prompt-title');
+        const msgEl = document.getElementById('prompt-message');
+        const inputEl = document.getElementById('prompt-input');
+        const btnOk = document.getElementById('btn-prompt-ok');
+        const btnCancel = document.getElementById('btn-prompt-cancel');
+
+        titleEl.textContent = title;
+        msgEl.textContent = message;
+        inputEl.value = defaultValue;
+        modal.classList.remove('hidden');
+        inputEl.focus();
+
+        const cleanup = (value) => {
+            modal.classList.add('hidden');
+            btnOk.onclick = null;
+            btnCancel.onclick = null;
+            resolve(value);
+        };
+
+        btnOk.onclick = () => cleanup(inputEl.value);
+        btnCancel.onclick = () => cleanup(null);
+        inputEl.onkeydown = (e) => {
+            if (e.key === 'Enter') cleanup(inputEl.value);
+            if (e.key === 'Escape') cleanup(null);
+        };
+    });
 }
 
 // --- Initialization ---
@@ -149,7 +229,7 @@ async function initAuth() {
             const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
 
             if (error) {
-                alert(`Login failed: ${error.message}`);
+                showToast(`Login failed: ${error.message}`, 'error');
             } else {
                 console.log('[Auth] Login successful');
                 // Redirect directly to the dashboard
@@ -481,7 +561,7 @@ async function renderAdminPosts(container) {
         const files = selectedFiles;
 
         if (!title || files.length === 0) {
-            alert('Please provide a title and select a folder with PNGs.');
+            showToast('Please provide a title and select a folder with PNGs.', 'warning');
             return;
         }
 
@@ -493,7 +573,7 @@ async function renderAdminPosts(container) {
             document.getElementById('modal-new-post').classList.add('hidden');
             loadAdminPosts();
         } catch (err) {
-            alert(`Upload failed: ${err.message}`);
+            showToast(`Upload failed: ${err.message}`, 'error');
         } finally {
             btnSave.disabled = false;
             btnSave.textContent = 'Create Post & Upload';
@@ -632,7 +712,7 @@ async function startCapture() {
         else if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
             msg = 'Audio recording requires a secure connection (HTTPS).';
         }
-        alert(msg + '\n\nDebug: ' + err.message);
+        showToast(msg + ' (Check console for details)', 'error');
     }
 }
 
@@ -717,7 +797,7 @@ function clearWaveform() {
 
 async function saveAndUploadAudio() {
     if (audioRecorder.chunks.length === 0) {
-        alert('No audio data recorded. Please try recording again.');
+        showToast('No audio data recorded. Please try recording again.', 'warning');
         return;
     }
 
@@ -748,9 +828,9 @@ async function saveAndUploadAudio() {
         }
 
         closeAudioRecorder();
-        alert('Audio tagged successfully!');
+        showToast('Audio tagged successfully!', 'success');
     } catch (err) {
-        alert('Upload failed: ' + err.message);
+        showToast('Upload failed: ' + err.message, 'error');
     } finally {
         btnSave.textContent = 'Save & Upload';
         btnSave.disabled = false;
@@ -790,7 +870,7 @@ async function uploadAudio(slideId, blob) {
 }
 
 async function deleteAudio(slideId, audioUrl) {
-    if (!confirm('Are you sure you want to delete this audio recording?')) return;
+    if (!(await showConfirm('Are you sure you want to delete this audio recording?'))) return;
 
     try {
         // 1. Storage Cleanup (R2)
@@ -815,9 +895,9 @@ async function deleteAudio(slideId, audioUrl) {
             if (icon) icon.remove();
         }
 
-        alert('Audio deleted successfully.');
+        showToast('Audio deleted successfully.', 'success');
     } catch (err) {
-        alert('Failed to delete audio: ' + err.message);
+        showToast('Failed to delete audio: ' + err.message, 'error');
     }
 }
 
@@ -851,8 +931,8 @@ async function renderAdminSubscribers(container) {
     loadAdminSubscribers();
 
     document.getElementById('btn-new-sub').onclick = async () => {
-        const name = prompt('Enter Supporter Name:');
-        const email = prompt('Enter Supporter Email:');
+        const name = await showPrompt('Enter Supporter Name:', 'Add Supporter');
+        const email = await showPrompt('Enter Supporter Email:', 'Add Supporter');
         if (name && email) {
             await supabaseClient.from('subscribers').insert([{ name, email }]);
             loadAdminSubscribers();
@@ -887,7 +967,7 @@ async function loadAdminSubscribers() {
 }
 
 async function deleteSubscriber(id) {
-    if (confirm('Are you sure?')) {
+    if (await showConfirm('Are you sure?')) {
         await supabaseClient.from('subscribers').delete().eq('id', id);
         loadAdminSubscribers();
     }
@@ -957,7 +1037,7 @@ function showContextMenu(x, y, slide) {
 
 
 async function deleteSlide(slideId) {
-    if (!confirm('Are you sure you want to delete this slide?')) return;
+    if (!(await showConfirm('Are you sure you want to delete this slide?'))) return;
 
     try {
         const { error } = await supabaseClient.from('slides').delete().eq('id', slideId);
@@ -976,7 +1056,7 @@ async function deleteSlide(slideId) {
 
         console.log('[Gallery] Slide deleted and UI updated.');
     } catch (err) {
-        alert('Failed to delete slide: ' + err.message);
+        showToast('Failed to delete slide: ' + err.message, 'error');
     }
 }
 
@@ -1034,7 +1114,7 @@ async function moderateComment(id, status) {
         .update({ status })
         .eq('id', id);
 
-    if (error) alert(`Error: ${error.message}`);
+    if (error) showToast(`Error: ${error.message}`, 'error');
     else loadAdminComments();
 }
 
@@ -1068,7 +1148,7 @@ async function loadComments(postId) {
         }]);
 
         form.reset();
-        alert('Your comment has been submitted for moderation.');
+        showToast('Your comment has been submitted for moderation.', 'success');
     };
 }
 async function loadAdminPosts() {
@@ -1157,11 +1237,11 @@ async function renderAdminEditGallery(container, postId) {
 
 async function updatePostTitle(postId) {
     const newTitle = document.getElementById('edit-post-title').value;
-    if (!newTitle.trim()) return alert('Title cannot be empty');
+    if (!newTitle.trim()) return showToast('Title cannot be empty', 'warning');
 
     const { error } = await supabaseClient.from('posts').update({ title: newTitle }).eq('id', postId);
-    if (!error) alert('Title updated successfully!');
-    else alert('Error updating title: ' + error.message);
+    if (!error) showToast('Title updated successfully!', 'success');
+    else showToast('Error updating title: ' + error.message, 'error');
 }
 
 function initDragAndDrop(postId) {
@@ -1311,7 +1391,7 @@ function renderUploadPreview(files) {
 
 // --- Email Broadcast Logic ---
 async function sendBroadcast(postId) {
-    if (!confirm('Send this post as an email broadcast to all subscribers?')) return;
+    if (!(await showConfirm('Send this post as an email broadcast to all subscribers?'))) return;
 
     const { data: post } = await supabaseClient.from('posts').select('*').eq('id', postId).single();
 
@@ -1327,21 +1407,21 @@ async function sendBroadcast(postId) {
         });
 
         if (error) throw error;
-        alert('Broadcast sent successfully to subscribers!');
+        showToast('Broadcast sent successfully to subscribers!', 'success');
     } catch (err) {
         console.error('[Broadcast] Failed:', err);
-        alert('Failed to send broadcast: ' + err.message);
+        showToast('Failed to send broadcast: ' + err.message, 'error');
     }
 }
 
 // --- Cleanup & Maintenance ---
 async function deletePost(id) {
-    if (!confirm('Are you sure you want to delete this post? This will remove all slides and audio from storage.')) return;
+    if (!(await showConfirm('Are you sure you want to delete this post? This will remove all slides and audio from storage.'))) return;
 
     const { error } = await supabaseClient.from('posts').delete().eq('id', id);
 
 
-    if (error) alert('Error: ' + error.message);
+    if (error) showToast('Error: ' + error.message, 'error');
     else loadAdminPosts();
 }
 
@@ -1375,7 +1455,7 @@ async function openVideoUploader(slide) {
     document.getElementById('video-upload-zone').onclick = () => document.getElementById('video-file-input').click();
 
     btnDelete.onclick = async () => {
-        if (confirm('Are you sure you want to remove the video from this slide?')) {
+        if (await showConfirm('Are you sure you want to remove the video from this slide?')) {
             await deleteVideo(slide.id, slide.video_url);
             modal.classList.add('hidden');
         }
@@ -1387,7 +1467,7 @@ async function openVideoUploader(slide) {
         const file = fileInput.files[0];
 
         if (!file && !slide.video_url) {
-            alert('Please select a video file.');
+            showToast('Please select a video file.', 'warning');
             return;
         }
 
@@ -1424,7 +1504,7 @@ async function openVideoUploader(slide) {
 
             if (dbErr) throw dbErr;
 
-            alert('Video updated successfully!');
+            showToast('Video updated successfully!', 'success');
             modal.classList.add('hidden');
 
             // Refresh current view to show changes
@@ -1433,7 +1513,7 @@ async function openVideoUploader(slide) {
                 renderAdminEditGallery(document.getElementById('admin-content'), postId);
             }
         } catch (err) {
-            alert('Operation failed: ' + err.message);
+            showToast('Operation failed: ' + err.message, 'error');
         } finally {
             btnSave.disabled = false;
             btnSave.textContent = 'Upload & Tag Slide';
@@ -1460,7 +1540,7 @@ async function deleteVideo(slideId, videoUrl) {
             video_description: null
         }).eq('id', slideId);
 
-        alert('Video removed successfully.');
+        showToast('Video removed successfully.', 'success');
 
         // Refresh UI
         if (window.location.hash.startsWith('#admin/edit/')) {
@@ -1468,7 +1548,7 @@ async function deleteVideo(slideId, videoUrl) {
             renderAdminEditGallery(document.getElementById('admin-content'), postId);
         }
     } catch (err) {
-        alert('Failed to remove video: ' + err.message);
+        showToast('Failed to remove video: ' + err.message, 'error');
     }
 }
 
