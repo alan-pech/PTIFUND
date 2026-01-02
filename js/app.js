@@ -6,7 +6,7 @@
  */
 
 // --- Constants & State ---
-const APP_VERSION = 'v1.0.002';
+const APP_VERSION = 'v1.0.003';
 const ADMIN_ROUTE_SECRET = 'admin-portal'; // Accessible via index.html#admin-portal
 
 let currentUser = null;
@@ -30,6 +30,9 @@ function handleRouteChange() {
     const hash = window.location.hash.substring(1) || 'home';
     console.log(`[Navigation] Hash changed to: ${hash}`);
 
+    // Update navigation active state
+    updateNavActiveState(hash);
+
     // Route logic
     if (hash === 'home') {
         showView('home-view');
@@ -48,6 +51,22 @@ function handleRouteChange() {
     } else {
         console.warn(`[Routing] Unrecognized route: ${hash}. Redircting home.`);
         window.location.hash = '#home';
+    }
+}
+
+function updateNavActiveState(hash) {
+    // Remove active class from all nav links
+    document.querySelectorAll('#main-nav .nav-link').forEach(link => {
+        link.classList.remove('active');
+    });
+
+    // Add active class to current link
+    if (hash === 'home' || hash === '') {
+        const homeLink = document.querySelector('#main-nav a[href="#home"]');
+        if (homeLink) homeLink.classList.add('active');
+    } else if (hash === 'archive') {
+        const archiveLink = document.querySelector('#main-nav a[href="#archive"]');
+        if (archiveLink) archiveLink.classList.add('active');
     }
 }
 
@@ -218,7 +237,6 @@ async function loadLatestPost() {
                 `).join('')}
             </aside>
             <article class="post-detail">
-                <h2>${post.title}</h2>
                 <div class="slides-stack">
                     ${slides.map((slide, index) => `
                         <div class="slide-card" data-slide-index="${index}">
@@ -278,7 +296,6 @@ async function loadPostDetails(id) {
                 `).join('')}
             </aside>
             <article class="post-detail">
-                <h2>${post.title}</h2>
                 <div class="slides-stack">
                     ${slides.map((slide, index) => `
                         <div class="slide-card" data-slide-index="${index}">
@@ -496,30 +513,36 @@ async function startCapture() {
         console.log('[Audio] Requesting microphone access...');
         audioRecorder.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
-        // Ensure AudioContext is resumed (required by some browsers)
-        if (!audioRecorder.audioCtx) {
-            audioRecorder.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        // Setup MediaRecorder with appropriate mime type
+        const options = { mimeType: 'audio/webm' };
+        if (!MediaRecorder.isTypeSupported('audio/webm')) {
+            options.mimeType = 'audio/mp4';
         }
-        if (audioRecorder.audioCtx.state === 'suspended') {
-            await audioRecorder.audioCtx.resume();
+        if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+            options.mimeType = '';
         }
 
-        audioRecorder.recorder = new MediaRecorder(audioRecorder.stream);
+        audioRecorder.recorder = new MediaRecorder(audioRecorder.stream, options);
         audioRecorder.chunks = [];
 
-        audioRecorder.recorder.ondataavailable = (e) => audioRecorder.chunks.push(e.data);
+        audioRecorder.recorder.ondataavailable = (e) => {
+            if (e.data.size > 0) {
+                audioRecorder.chunks.push(e.data);
+                console.log('[Audio] Data chunk received:', e.data.size, 'bytes');
+            }
+        };
 
-        // Visuals
+        // Initialize visualizer before starting recording
         initVisualizer(audioRecorder.stream);
 
-        audioRecorder.recorder.start();
+        audioRecorder.recorder.start(100); // Collect data every 100ms
         audioRecorder.startTime = Date.now();
         audioRecorder.timerInterval = setInterval(updateTimer, 1000);
 
         document.getElementById('btn-start-record').classList.add('hidden');
         document.getElementById('btn-stop-record').classList.remove('hidden');
 
-        console.log('[Audio] Capture started');
+        console.log('[Audio] Recording started with mimeType:', options.mimeType);
     } catch (err) {
         console.error('[Audio] Capture failed:', err);
         let msg = 'Microphone access denied or not available.';
@@ -553,10 +576,19 @@ function updateTimer() {
 }
 
 function initVisualizer(stream) {
-    audioRecorder.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (!audioRecorder.audioCtx) {
+        audioRecorder.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    
+    // Resume if suspended
+    if (audioRecorder.audioCtx.state === 'suspended') {
+        audioRecorder.audioCtx.resume();
+    }
+    
     const source = audioRecorder.audioCtx.createMediaStreamSource(stream);
     audioRecorder.analyser = audioRecorder.audioCtx.createAnalyser();
-    audioRecorder.analyser.fftSize = 256;
+    audioRecorder.analyser.fftSize = 2048;
+    audioRecorder.analyser.smoothingTimeConstant = 0.8;
     source.connect(audioRecorder.analyser);
 
     drawWaveform();
@@ -603,7 +635,18 @@ function clearWaveform() {
 }
 
 async function saveAndUploadAudio() {
-    const blob = new Blob(audioRecorder.chunks, { type: 'audio/mp3' });
+    if (audioRecorder.chunks.length === 0) {
+        alert('No audio data recorded. Please try recording again.');
+        return;
+    }
+    
+    console.log('[Audio] Total chunks:', audioRecorder.chunks.length);
+    
+    // Use the appropriate mime type for the blob
+    const mimeType = audioRecorder.recorder.mimeType || 'audio/webm';
+    const blob = new Blob(audioRecorder.chunks, { type: mimeType });
+    console.log('[Audio] Blob created:', blob.size, 'bytes, type:', blob.type);
+    
     const btnSave = document.getElementById('btn-save-record');
     btnSave.textContent = 'Uploading...';
     btnSave.disabled = true;
@@ -634,14 +677,27 @@ async function saveAndUploadAudio() {
 }
 
 async function uploadAudio(slideId, blob) {
-    const filePath = `audio/${slideId}_${Date.now()}.mp3`;
+    // Determine file extension based on blob type
+    let extension = 'webm';
+    if (blob.type.includes('mp4')) {
+        extension = 'mp4';
+    } else if (blob.type.includes('ogg')) {
+        extension = 'ogg';
+    }
+    
+    const filePath = `audio/${slideId}_${Date.now()}.${extension}`;
+    console.log('[Audio] Uploading to:', filePath, 'Size:', blob.size);
+    
     const { error: uploadErr } = await supabaseClient.storage
         .from('post-assets')
-        .upload(filePath, blob);
+        .upload(filePath, blob, {
+            contentType: blob.type
+        });
 
     if (uploadErr) throw uploadErr;
 
     const { data: { publicUrl } } = supabaseClient.storage.from('post-assets').getPublicUrl(filePath);
+    console.log('[Audio] Uploaded successfully:', publicUrl);
 
     const { error: dbErr } = await supabaseClient
         .from('slides')

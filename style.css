@@ -24,6 +24,7 @@ body {
     color: var(--color-dark);
     line-height: 1.6;
     overflow-x: hidden;
+    overscroll-behavior-y: none;
 }
 
 h1,
@@ -68,6 +69,11 @@ nav a {
     transition: color 0.3s;
 }
 
+nav a.active {
+    color: var(--color-orange);
+    border-bottom: 2px solid var(--color-orange);
+}
+
 nav a:hover {
     color: var(--color-orange);
 }
@@ -86,6 +92,10 @@ main {
 #home-view {
     max-width: 1200px;
     margin: 0 auto;
+    padding: 0 1rem;
+}
+
+.post-with-sidebar {
     padding: 0;
 }
 
@@ -762,6 +772,73 @@ textarea {
 }
 
 @media (max-width: 768px) {
+    .app-header {
+        padding: 0.75rem 1rem;
+        position: relative;
+    }
+    
+    .header-content {
+        flex-direction: column;
+        gap: 0.75rem;
+        align-items: flex-start;
+    }
+    
+    .logo {
+        font-size: 1.25rem;
+    }
+    
+    nav {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+    
+    nav a {
+        margin-left: 0;
+        font-size: 0.9rem;
+    }
+    
+    #home-view,
+    #archive-view,
+    #post-view {
+        padding: 0;
+    }
+    
+    .post-with-sidebar {
+        display: block;
+        width: 100%;
+        gap: 0;
+        max-width: 100%;
+        margin: 0;
+        padding: 0 1rem;
+    }
+    
+    .post-detail {
+        width: 100%;
+        max-width: 100%;
+        padding: 0;
+    }
+    
+    .slide-card {
+        margin-bottom: 1rem;
+        border-radius: 8px;
+        max-width: 100%;
+        width: 100%;
+    }
+    
+    .slide-image {
+        max-width: 100%;
+        width: 100%;
+        height: auto;
+        display: block;
+    }
+    
+    .post-detail h2 {
+        font-size: 1.5rem;
+        padding: 0 0.5rem;
+        margin-bottom: 1rem;
+    }
+    
     .admin-layout {
         grid-template-columns: 1fr;
     }
