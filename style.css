@@ -984,3 +984,56 @@ textarea {
     backdrop-filter: blur(5px);
     background: rgba(0,0,0,0.4);
 }
+
+/* Admin Login UI Refinements */
+#admin-login-view {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 70vh;
+    padding: 2rem;
+}
+
+#admin-login-view .admin-card {
+    background: white;
+    padding: 3rem;
+    border-radius: 20px;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+    width: 100%;
+    max-width: 450px;
+}
+
+#admin-login-view h2 {
+    margin-bottom: 2.5rem;
+    font-size: 2rem;
+    color: var(--color-dark);
+    font-weight: 700;
+}
+
+#admin-login-view form {
+    display: flex;
+    flex-direction: column;
+}
+
+#admin-login-view input {
+    padding: 1rem 1.25rem;
+    border-radius: 12px;
+    border: 2px solid #f1f5f9;
+    background: #f8fafc;
+    transition: all 0.3s ease;
+    font-size: 1rem;
+}
+
+#admin-login-view input:focus {
+    border-color: var(--color-orange);
+    background: white;
+    outline: none;
+    box-shadow: 0 0 0 4px rgba(211, 84, 0, 0.1);
+}
+
+#admin-login-view .btn-primary {
+    padding: 1rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-top: 1rem;
+}
