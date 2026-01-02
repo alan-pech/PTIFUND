@@ -282,7 +282,10 @@ textarea {
     display: flex;
     align-items: center;
     gap: 1rem;
-    padding: 0.85rem 1.25rem;
+    padding: 0 1.25rem;
+    /* Zero vertical padding, let height control it */
+    height: 3.2rem;
+    /* Fixed height for all */
     border-radius: 12px;
     text-decoration: none;
     color: #64748b;
@@ -296,6 +299,8 @@ textarea {
     font-size: 1rem;
     margin-bottom: 0.25rem;
     box-sizing: border-box;
+    line-height: 1;
+    /* Reset line-height */
 }
 
 .primary-action {
@@ -308,10 +313,11 @@ textarea {
 .primary-action:hover {
     background-color: #A04000 !important;
     transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(211, 84, 0, 0.3);
 }
 
 .nav-item:hover,
-.logout-btn:hover {
+.logout-btn:not(.active):hover {
     background: #f1f5f9;
     color: var(--color-dark);
 }
@@ -322,8 +328,9 @@ textarea {
 }
 
 .logout-btn:hover {
-    background: #fff1f1;
-    color: #e74c3c;
+    background: #fff1f1 !important;
+    /* Force red tint hover for logout */
+    color: #e74c3c !important;
 }
 
 .nav-icon {
@@ -345,7 +352,7 @@ textarea {
 
 .logout-btn {
     margin-top: auto;
-    margin-bottom: 2rem;
+    margin-bottom: 1.5rem;
 }
 
 .app-version {
