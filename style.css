@@ -1277,11 +1277,21 @@ textarea {
 }
 
 .slide-group {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(180px, 1fr);
     gap: 0.75rem;
     align-items: start;
     /* Makes element draggable with assets appearing to the right */
+}
+
+/* Span multiple columns based on content */
+.slide-group:has(.asset-card-wrapper) {
+    grid-column: span 2;
+}
+
+.slide-group:has(.asset-card-wrapper:nth-child(3)) {
+    grid-column: span 3;
 }
 
 .asset-card-wrapper {
