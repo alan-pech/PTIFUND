@@ -6,7 +6,7 @@
  */
 
 // --- Constants & State ---
-const APP_VERSION = 'v1.0.062';
+const APP_VERSION = 'v1.0.063';
 const ADMIN_ROUTE_SECRET = 'admin-portal'; // Accessible via index.html#admin-portal
 
 let currentUser = null;
@@ -1550,7 +1550,8 @@ async function updatePostTitle(postId) {
 function initDragAndDrop(postId) {
     const gallery = document.getElementById('gallery-container');
     let draggedElement = null;
-    let dragType = null; // 'group' or 'asset'
+    let dragType = null;
+    let placeholder = null;
 
     gallery.addEventListener('dragstart', (e) => {
         const itemWrapper = e.target.closest('.item-wrapper');
@@ -1566,40 +1567,63 @@ function initDragAndDrop(postId) {
 
         if (draggedElement) {
             draggedElement.classList.add('dragging');
-            // Ensure dataTransfer works
             e.dataTransfer.effectAllowed = 'move';
             e.dataTransfer.setData('text/html', draggedElement.innerHTML);
+            
+            // Create a placeholder
+            placeholder = document.createElement('div');
+            placeholder.className = 'drag-placeholder';
+            placeholder.style.height = draggedElement.offsetHeight + 'px';
+            placeholder.style.border = '2px dashed var(--color-orange)';
+            placeholder.style.borderRadius = '12px';
+            placeholder.style.margin = '0';
+            placeholder.style.backgroundColor = '#fff7ed';
         }
-    });
-
-    gallery.addEventListener('dragend', (e) => {
-        if (!draggedElement) return;
-        draggedElement.classList.remove('dragging');
-        updateSlideOrder(postId);
-        draggedElement = null;
-        dragType = null;
     });
 
     gallery.addEventListener('dragover', (e) => {
         e.preventDefault();
         if (!draggedElement) return;
 
-        const afterElement = getDragAfterElement(gallery, e.clientY, dragType);
+        const afterElement = getElementAtPosition(gallery, e.clientY, dragType, draggedElement);
         
-        // Only move if the position has actually changed
-        const currentNext = draggedElement.nextElementSibling;
-        
-        if (afterElement === null) {
-            // Should be at the end
-            if (currentNext !== null) {
-                gallery.appendChild(draggedElement);
-            }
-        } else {
-            // Should be before afterElement
-            if (afterElement !== currentNext && afterElement !== draggedElement) {
-                gallery.insertBefore(draggedElement, afterElement);
-            }
+        // Remove placeholder from current position
+        if (placeholder.parentNode) {
+            placeholder.parentNode.removeChild(placeholder);
         }
+        
+        // Insert placeholder at new position
+        if (afterElement == null) {
+            gallery.appendChild(placeholder);
+        } else {
+            gallery.insertBefore(placeholder, afterElement);
+        }
+    });
+
+    gallery.addEventListener('drop', (e) => {
+        e.preventDefault();
+        if (!draggedElement || !placeholder) return;
+        
+        // Move the actual element to where the placeholder is
+        if (placeholder.parentNode) {
+            placeholder.parentNode.insertBefore(draggedElement, placeholder);
+            placeholder.parentNode.removeChild(placeholder);
+        }
+    });
+
+    gallery.addEventListener('dragend', (e) => {
+        if (!draggedElement) return;
+        
+        // Clean up
+        draggedElement.classList.remove('dragging');
+        if (placeholder && placeholder.parentNode) {
+            placeholder.parentNode.removeChild(placeholder);
+        }
+        
+        updateSlideOrder(postId);
+        draggedElement = null;
+        dragType = null;
+        placeholder = null;
     });
 
     // Event Delegation for Context Menu
@@ -1656,20 +1680,31 @@ function initDragAndDrop(postId) {
     });
 }
 
-function getDragAfterElement(container, y, dragType) {
-    const selector = dragType === 'group' ? '.slide-group:not(.dragging)' : '.item-wrapper:not(.dragging)';
-    const draggableElements = [...container.querySelectorAll(selector)];
-
-    return draggableElements.reduce((closest, child) => {
-        const box = child.getBoundingClientRect();
-        const offset = y - box.top - box.height / 2;
-
-        if (offset < 0 && offset > closest.offset) {
-            return { offset: offset, element: child };
-        } else {
-            return closest;
+function getElementAtPosition(container, y, dragType, draggedElement) {
+    const selector = dragType === 'group' ? '.slide-group' : '.item-wrapper';
+    const elements = [...container.querySelectorAll(selector)];
+    
+    let closestElement = null;
+    let closestDistance = Number.POSITIVE_INFINITY;
+    
+    elements.forEach(element => {
+        // Skip the dragged element and placeholder
+        if (element === draggedElement || element.classList.contains('drag-placeholder')) {
+            return;
         }
-    }, { offset: Number.NEGATIVE_INFINITY }).element;
+        
+        const box = element.getBoundingClientRect();
+        const elementMiddle = box.top + box.height / 2;
+        const distance = y - elementMiddle;
+        
+        // If cursor is above this element and it's closer than previous closest
+        if (distance < 0 && Math.abs(distance) < closestDistance) {
+            closestDistance = Math.abs(distance);
+            closestElement = element;
+        }
+    });
+    
+    return closestElement;
 }
 
 async function updateSlideOrder(postId) {
