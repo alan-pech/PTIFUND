@@ -6,7 +6,7 @@
  */
 
 // --- Constants & State ---
-const APP_VERSION = 'v1.0.057';
+const APP_VERSION = 'v1.0.058';
 const ADMIN_ROUTE_SECRET = 'admin-portal'; // Accessible via index.html#admin-portal
 
 let currentUser = null;
@@ -1651,39 +1651,30 @@ function getDragAfterElement(container, x, y, dragType) {
     const selector = dragType === 'group' ? '.slide-group:not(.dragging)' : '.item-wrapper:not(.dragging)';
     const candidates = [...container.querySelectorAll(selector)];
 
-    let closestElement = null;
-    let closestDistance = Number.POSITIVE_INFINITY;
-
+    // We return the element that should come AFTER the dragged element
+    // So we insert BEFORE this returned element
+    
     for (const child of candidates) {
         const box = child.getBoundingClientRect();
+        const centerX = box.left + box.width / 2;
+        const centerY = box.top + box.height / 2;
         
-        // Check if cursor is above this element (different row, earlier)
-        if (y < box.top) {
-            // Element is in a row below cursor - this is a candidate
-            const distance = (box.top - y) * 1000 + Math.abs(box.left - x);
-            if (distance < closestDistance) {
-                closestDistance = distance;
-                closestElement = child;
-            }
+        // If cursor is above this element's center vertically, this element comes after
+        if (y < centerY) {
+            return child;
         }
-        // Check if cursor is on the same row as this element
-        else if (y >= box.top && y <= box.bottom) {
-            // Cursor is on same row - check horizontal position
-            const centerX = box.left + box.width / 2;
-            
-            // Only consider this element if cursor is to the left of its center
+        
+        // If cursor is at same vertical level (same row), check horizontal
+        if (y >= box.top && y < box.bottom) {
+            // If cursor is left of this element's center, this element comes after
             if (x < centerX) {
-                const distance = Math.abs(centerX - x);
-                if (distance < closestDistance) {
-                    closestDistance = distance;
-                    closestElement = child;
-                }
+                return child;
             }
         }
     }
 
-    // If no element found, drop at the end (return null)
-    return closestElement;
+    // Cursor is after all elements - return null to append at end
+    return null;
 }
 
 async function updateSlideOrder(postId) {
