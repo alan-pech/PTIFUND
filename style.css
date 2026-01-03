@@ -540,42 +540,6 @@ textarea {
     font-size: 1.05rem;
 }
 
-.audio-badge {
-    position: absolute;
-    top: 12px;
-    right: 12px;
-    background: var(--color-green);
-    color: white;
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.1rem;
-    font-weight: bold;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-    pointer-events: none;
-}
-
-.video-badge {
-    position: absolute;
-    top: 12px;
-    left: 12px;
-    background: var(--color-orange);
-    color: white;
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.1rem;
-    font-weight: bold;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-    pointer-events: none;
-}
-
 .video-detail {
     margin-top: 1.5rem;
     padding: 1.5rem;
@@ -1188,6 +1152,54 @@ textarea {
     max-width: 1400px;
     margin: 0 auto;
     padding: 2rem 3rem;
+}
+
+.slide-group {
+    display: contents;
+    /* Allows children to flow into the parent grid */
+}
+
+.asset-card {
+    background: white;
+    border: 2px solid #edf2f7;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    text-align: center;
+    min-height: 120px;
+    cursor: grab;
+    transition: all 0.2s ease;
+}
+
+.asset-card:hover {
+    border-color: var(--color-orange);
+    background: #fff8f5;
+}
+
+.asset-icon {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+}
+
+.asset-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--color-dark);
+}
+
+.asset-type-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    color: #94a3b8;
+    letter-spacing: 0.05em;
+    margin-top: 0.25rem;
+}
+
+.gallery-item.type-asset {
+    aspect-ratio: auto;
+    background: white;
 }
 
 .edit-page-header {

@@ -6,7 +6,7 @@
  */
 
 // --- Constants & State ---
-const APP_VERSION = 'v1.0.022';
+const APP_VERSION = 'v1.0.023';
 const ADMIN_ROUTE_SECRET = 'admin-portal'; // Accessible via index.html#admin-portal
 
 let currentUser = null;
@@ -1260,7 +1260,6 @@ async function renderAdminEditGallery(container, postId) {
     }
     const { data: slides } = await supabaseClient.from('slides').select('*').eq('post_id', postId).order('order_index');
 
-    // Update the title in the full-page layout wrapper
     const titleEl = document.getElementById('edit-view-title');
     if (titleEl) titleEl.textContent = post.title;
 
@@ -1279,18 +1278,38 @@ async function renderAdminEditGallery(container, postId) {
         <div class="manage-slides-section">
             <div class="section-header">
                 <h2>Slides Gallery</h2>
-                <p class="help-text">Drag to reorder. Right-click for options (audio, video, delete).</p>
+                <p class="help-text">Drag slides (moves attached audio/video) or drag audio/video cards to re-assign them.</p>
             </div>
             
             <div id="gallery-container" class="slides-grid full-width-gallery">
                 ${(slides || []).map(slide => `
-                    <div class="slide-card-wrapper">
-                        <div class="gallery-item" draggable="true" data-id="${slide.id}" data-image="${slide.image_url}" data-audio="${slide.audio_url || ''}" data-video="${slide.video_url || ''}" data-video-description="${slide.video_description || ''}">
-                            <img src="${slide.image_url}" loading="lazy">
-                            ${slide.audio_url ? '<div class="audio-badge">♪</div>' : ''}
-                            ${slide.video_url ? '<div class="video-badge">🎥</div>' : ''}
+                    <div class="slide-group" data-slide-id="${slide.id}">
+                        <div class="slide-card-wrapper item-wrapper" data-type="slide" data-id="${slide.id}">
+                            <div class="gallery-item" draggable="true" data-id="${slide.id}" data-image="${slide.image_url}" data-audio="${slide.audio_url || ''}" data-video="${slide.video_url || ''}" data-video-description="${slide.video_description || ''}">
+                                <img src="${slide.image_url}" loading="lazy">
+                            </div>
+                            <div class="slide-label">Slide ${slide.order_index + 1}</div>
                         </div>
-                        <div class="slide-label">Slide ${slide.order_index + 1}</div>
+                        ${slide.audio_url ? `
+                            <div class="asset-card-wrapper item-wrapper" data-type="asset" data-asset-type="audio" data-url="${slide.audio_url}">
+                                <div class="gallery-item asset-card type-asset" draggable="true">
+                                    <span class="asset-icon">🔊</span>
+                                    <span class="asset-title">Audio Recording</span>
+                                    <span class="asset-type-label">Audio</span>
+                                </div>
+                                <div class="slide-label">Attached Asset</div>
+                            </div>
+                        ` : ''}
+                        ${slide.video_url ? `
+                            <div class="asset-card-wrapper item-wrapper" data-type="asset" data-asset-type="video" data-url="${slide.video_url}" data-desc="${slide.video_description || ''}">
+                                <div class="gallery-item asset-card type-asset" draggable="true">
+                                    <span class="asset-icon">🎥</span>
+                                    <span class="asset-title">${slide.video_description || 'Video Content'}</span>
+                                    <span class="asset-type-label">Video</span>
+                                </div>
+                                <div class="slide-label">Attached Asset</div>
+                            </div>
+                        ` : ''}
                     </div>
                 `).join('')}
             </div>
@@ -1320,43 +1339,49 @@ async function updatePostTitle(postId) {
 
 function initDragAndDrop(postId) {
     const gallery = document.getElementById('gallery-container');
-    let draggedWrapper = null;
+    let draggedElement = null;
+    let isGroupDrag = false;
 
     gallery.addEventListener('dragstart', (e) => {
-        const galleryItem = e.target.closest('.gallery-item');
-        if (!galleryItem) return;
+        const itemWrapper = e.target.closest('.item-wrapper');
+        if (!itemWrapper) return;
 
-        draggedWrapper = galleryItem.closest('.slide-card-wrapper');
-        if (draggedWrapper) {
-            draggedWrapper.classList.add('dragging');
-            galleryItem.classList.add('dragging');
+        if (itemWrapper.dataset.type === 'slide') {
+            draggedElement = itemWrapper.closest('.slide-group');
+            isGroupDrag = true;
+        } else {
+            draggedElement = itemWrapper;
+            isGroupDrag = false;
+        }
+
+        if (draggedElement) {
+            draggedElement.classList.add('dragging');
         }
     });
 
     gallery.addEventListener('dragend', (e) => {
-        if (!draggedWrapper) return;
-        draggedWrapper.classList.remove('dragging');
-        draggedWrapper.querySelector('.gallery-item')?.classList.remove('dragging');
+        if (!draggedElement) return;
+        draggedElement.classList.remove('dragging');
         updateSlideOrder(postId);
-        draggedWrapper = null;
+        draggedElement = null;
     });
 
     gallery.addEventListener('dragover', (e) => {
         e.preventDefault();
-        if (!draggedWrapper) return;
+        if (!draggedElement) return;
 
         const afterElement = getDragAfterElement(gallery, e.clientX, e.clientY);
         if (afterElement == null) {
-            gallery.appendChild(draggedWrapper);
+            gallery.appendChild(draggedElement);
         } else {
-            gallery.insertBefore(draggedWrapper, afterElement);
+            gallery.insertBefore(draggedElement, afterElement);
         }
     });
 
     // Event Delegation for Context Menu
     gallery.addEventListener('contextmenu', (e) => {
         const item = e.target.closest('.gallery-item');
-        if (item) {
+        if (item && !item.classList.contains('type-asset')) {
             e.preventDefault();
             const slide = {
                 id: item.dataset.id,
@@ -1371,16 +1396,16 @@ function initDragAndDrop(postId) {
 }
 
 function getDragAfterElement(container, x, y) {
-    const draggableWrappers = [...container.querySelectorAll('.slide-card-wrapper:not(.dragging)')];
+    const draggableWrappers = [...container.querySelectorAll('.item-wrapper:not(.dragging)')];
 
     return draggableWrappers.reduce((closest, child) => {
         const box = child.getBoundingClientRect();
         const centerX = box.left + box.width / 2;
         const centerY = box.top + box.height / 2;
-        const distance = Math.sqrt(Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2));
+        const offset = Math.sqrt(Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2));
 
-        if (distance < closest.offset) {
-            return { offset: distance, element: child };
+        if (offset < closest.offset) {
+            return { offset: offset, element: child };
         } else {
             return closest;
         }
@@ -1388,17 +1413,47 @@ function getDragAfterElement(container, x, y) {
 }
 
 async function updateSlideOrder(postId) {
-    const items = [...document.querySelectorAll('.gallery-item')];
-    console.log('[Gallery] Updating order for ' + items.length + ' slides...');
+    const allWrappers = [...document.querySelectorAll('.item-wrapper')];
+    console.log('[Gallery] Recalculating order and assignments for ' + allWrappers.length + ' items...');
 
-    const updates = items.map((item, index) => ({
-        id: item.dataset.id,
-        order_index: index
+    const slides = [];
+    let currentSlide = null;
+
+    allWrappers.forEach(wrapper => {
+        if (wrapper.dataset.type === 'slide') {
+            currentSlide = {
+                id: wrapper.dataset.id,
+                audio_url: null,
+                video_url: null,
+                video_description: null
+            };
+            slides.push(currentSlide);
+        } else if (currentSlide) {
+            if (wrapper.dataset.assetType === 'audio') {
+                currentSlide.audio_url = wrapper.dataset.url;
+            } else if (wrapper.dataset.assetType === 'video') {
+                currentSlide.video_url = wrapper.dataset.url;
+                currentSlide.video_description = wrapper.dataset.desc;
+            }
+        }
+    });
+
+    // Update Supabase
+    const updates = slides.map((slide, index) => ({
+        id: slide.id,
+        order_index: index,
+        audio_url: slide.audio_url,
+        video_url: slide.video_url,
+        video_description: slide.video_description
     }));
 
-    // Perform individual updates
     for (const update of updates) {
-        await supabaseClient.from('slides').update({ order_index: update.order_index }).eq('id', update.id);
+        await supabaseClient.from('slides').update({
+            order_index: update.order_index,
+            audio_url: update.audio_url,
+            video_url: update.video_url,
+            video_description: update.video_description
+        }).eq('id', update.id);
     }
 
     // Refresh UI
