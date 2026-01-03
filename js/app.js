@@ -6,7 +6,7 @@
  */
 
 // --- Constants & State ---
-const APP_VERSION = 'v1.0.072';
+const APP_VERSION = 'v1.0.073';
 const ADMIN_ROUTE_SECRET = 'admin-portal'; // Accessible via index.html#admin-portal
 
 let currentUser = null;
@@ -536,18 +536,18 @@ async function loadLatestPost() {
                 `).join('')}
             </aside>
             <article class="post-detail">
-                ${post.document_html ? `
-                    <div class="post-document">
-                        <div class="document-content">
-                            ${post.document_html}
-                        </div>
-                    </div>
-                ` : ''}
                 <div class="slides-stack">
                     <div class="public-post-title">${post.title}</div>
                     ${slides.map((slide, index) => `
                         <div class="slide-card" data-slide-index="${index}">
                             <img src="${slide.image_url}" class="slide-image" loading="lazy">
+                            ${slide.document_html ? `
+                                <div class="post-document">
+                                    <div class="document-content">
+                                        ${slide.document_html}
+                                    </div>
+                                </div>
+                            ` : ''}
                             ${slide.audio_url ? `
                                 <div class="audio-wrapper">
                                     ${slide.audio_description ? `<div class="asset-title">${slide.audio_description}</div>` : ''}
@@ -673,18 +673,18 @@ async function loadPostDetails(id) {
                 `).join('')}
             </aside>
             <article class="post-detail">
-                ${post.document_html ? `
-                    <div class="post-document">
-                        <div class="document-content">
-                            ${post.document_html}
-                        </div>
-                    </div>
-                ` : ''}
                 <div class="slides-stack">
                     <div class="public-post-title">${post.title}</div>
                     ${slides.map((slide, index) => `
                         <div class="slide-card" data-slide-index="${index}">
                             <img src="${slide.image_url}" class="slide-image" loading="lazy">
+                            ${slide.document_html ? `
+                                <div class="post-document">
+                                    <div class="document-content">
+                                        ${slide.document_html}
+                                    </div>
+                                </div>
+                            ` : ''}
                             ${slide.audio_url ? `
                                 <div class="audio-wrapper">
                                     ${slide.audio_description ? `<div class="asset-title">${slide.audio_description}</div>` : ''}
@@ -1263,15 +1263,17 @@ function showContextMenu(x, y, data, postId) {
     if (data.type === 'asset') {
         // Simplified menu for assets
         menu.innerHTML = `
-            <div class="menu-item delete" id="menu-asset-delete">🗑️ Delete ${data.assetType === 'audio' ? 'Audio' : 'Video'}</div>
+            <div class="menu-item delete" id="menu-asset-delete">🗑️ Delete ${data.assetType === 'audio' ? 'Audio' : (data.assetType === 'video' ? 'Video' : 'Document')}</div>
         `;
         document.body.appendChild(menu);
 
         document.getElementById('menu-asset-delete').onclick = () => {
             if (data.assetType === 'audio') {
                 deleteAudio(data.slideId, data.url);
-            } else {
+            } else if (data.assetType === 'video') {
                 deleteVideo(data.slideId, data.url);
+            } else if (data.assetType === 'document') {
+                deleteDocument(data.slideId);
             }
             menu.remove();
         };
@@ -1310,9 +1312,7 @@ function showContextMenu(x, y, data, postId) {
         };
 
         document.getElementById('menu-document-action').onclick = async () => {
-            if (postId) {
-                openDocumentEditor(postId);
-            }
+            openDocumentEditor(data.id); // Pass slide ID
             menu.remove();
         };
 
@@ -1538,6 +1538,17 @@ async function renderAdminEditGallery(container, postId) {
                                 </div>
                                 <div class="slide-label">Attached Asset</div>
                             </div>
+
+                        ` : ''}
+                        ${slide.document_html ? `
+                            <div class="asset-card-wrapper item-wrapper" data-type="asset" data-asset-type="document" data-document-html="${encodeURIComponent(slide.document_html)}">
+                                <div class="gallery-item asset-card type-asset" draggable="true">
+                                    <span class="asset-icon">📄</span>
+                                    <span class="asset-title">Attached Document</span>
+                                    <span class="asset-type-label">Doc</span>
+                                </div>
+                                <div class="slide-label">Attached Asset</div>
+                            </div>
                         ` : ''}
                     </div>
                 `).join('')}
@@ -1678,7 +1689,8 @@ async function updateSlideOrder(postId) {
                 audio_url: null,
                 audio_description: null,
                 video_url: null,
-                video_description: null
+                video_description: null,
+                document_html: null
             };
             slides.push(currentSlide);
         } else if (currentSlide) {
@@ -1688,6 +1700,8 @@ async function updateSlideOrder(postId) {
             } else if (wrapper.dataset.assetType === 'video') {
                 currentSlide.video_url = wrapper.dataset.url;
                 currentSlide.video_description = wrapper.dataset.desc;
+            } else if (wrapper.dataset.assetType === 'document') {
+                currentSlide.document_html = decodeURIComponent(wrapper.dataset.documentHtml);
             }
         }
     });
@@ -1699,7 +1713,10 @@ async function updateSlideOrder(postId) {
         audio_url: slide.audio_url,
         audio_description: slide.audio_description,
         video_url: slide.video_url,
-        video_description: slide.video_description
+        audio_description: slide.audio_description,
+        video_url: slide.video_url,
+        video_description: slide.video_description,
+        document_html: slide.document_html
     }));
 
     for (const update of updates) {
@@ -1708,7 +1725,8 @@ async function updateSlideOrder(postId) {
             audio_url: update.audio_url,
             audio_description: update.audio_description,
             video_url: update.video_url,
-            video_description: update.video_description
+            video_description: update.video_description,
+            document_html: update.document_html
         }).eq('id', update.id);
     }
 
@@ -2072,15 +2090,15 @@ async function convertPDFToImages(pdfFile) {
 // --- Document Editor Functions ---
 let quillInstance = null;
 
-async function openDocumentEditor(postId) {
-    console.log('[Document] Opening editor for post:', postId);
+async function openDocumentEditor(slideId) {
+    console.log('[Document] Opening editor for slide:', slideId);
 
     const modal = document.getElementById('modal-document-editor');
-    const postIdInput = document.getElementById('document-post-id');
+    const slideIdInput = document.getElementById('document-slide-id');
     const editorContainer = document.getElementById('quill-editor-container');
 
-    // Store the post ID
-    postIdInput.value = postId;
+    // Store the slide ID
+    slideIdInput.value = slideId;
 
     // Initialize Quill if not already initialized
     if (!quillInstance) {
@@ -2104,9 +2122,9 @@ async function openDocumentEditor(postId) {
     // Load existing document if it exists
     try {
         const { data: post, error } = await supabaseClient
-            .from('posts')
+            .from('slides')
             .select('document_html')
-            .eq('id', postId)
+            .eq('id', slideId)
             .single();
 
         if (error) throw error;
@@ -2141,11 +2159,11 @@ function closeDocumentEditor() {
 }
 
 async function saveDocument() {
-    const postIdInput = document.getElementById('document-post-id');
-    const postId = postIdInput.value;
+    const slideIdInput = document.getElementById('document-slide-id');
+    const slideId = slideIdInput.value;
 
-    if (!postId) {
-        showToast('Error: No post ID found', 'error');
+    if (!slideId) {
+        showToast('Error: No slide ID found', 'error');
         return;
     }
 
@@ -2157,9 +2175,9 @@ async function saveDocument() {
 
     try {
         const { error } = await supabaseClient
-            .from('posts')
+            .from('slides')
             .update({ document_html: isEmpty ? null : htmlContent })
-            .eq('id', postId);
+            .eq('id', slideId);
 
         if (error) throw error;
 
@@ -2169,7 +2187,11 @@ async function saveDocument() {
         // Refresh the current view if we're on the edit page
         const hash = window.location.hash;
         if (hash.startsWith('#admin/edit/')) {
-            renderAdminEditGallery(document.getElementById('edit-view-content'), postId);
+            const hash = window.location.hash;
+            if (hash.startsWith('#admin/edit/')) {
+                const currentPostId = hash.split('/')[2]; // Extract existing post id from URL
+                renderAdminEditGallery(document.getElementById('edit-view-content'), currentPostId);
+            }
         }
     } catch (err) {
         console.error('[Document] Error saving document:', err);
@@ -2265,3 +2287,22 @@ window.deleteAudio = deleteAudio;
 window.openDocumentEditor = openDocumentEditor;
 window.closeDocumentEditor = closeDocumentEditor;
 window.saveDocument = saveDocument;
+
+async function deleteDocument(slideId) {
+    if (!(await showConfirm('Are you sure you want to delete this document?'))) return;
+
+    try {
+        const { error } = await supabaseClient.from('slides').update({ document_html: null }).eq('id', slideId);
+        if (error) throw error;
+
+        showToast('Document deleted successfully', 'success');
+
+        // Refresh UI
+        if (window.location.hash.startsWith('#admin/edit/')) {
+            const postId = window.location.hash.split('/')[2];
+            renderAdminEditGallery(document.getElementById('edit-view-content'), postId);
+        }
+    } catch (err) {
+        showToast('Failed to delete document: ' + err.message, 'error');
+    }
+}

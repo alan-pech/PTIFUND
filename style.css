@@ -796,7 +796,14 @@ textarea {
 }
 
 .gallery-item:hover {
-    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+    cursor: pointer;
+    margin: 1rem 0;
+}
+
+.asset-icon {
+    font-size: 2rem;
+    display: block;
+    margin-bottom: 0.5rem;
 }
 
 .gallery-item.dragging {
