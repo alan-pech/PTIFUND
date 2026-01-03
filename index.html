@@ -104,7 +104,7 @@
                         <button id="btn-purge-storage" class="btn-purge" title="Purge orphaned files"
                             onclick="purgeOrphanedFiles()">🗑️ Purge</button>
                     </div>
-                    <div class="app-version">v1.0.074</div>
+                    <div class="app-version">v1.0.075</div>
                 </footer>
             </div>
         </section>
@@ -208,7 +208,7 @@
     </main>
 
     <footer class="app-footer">
-        <div class="version">v1.0.074</div>
+        <div class="version">v1.0.075</div>
         <p>&copy; 2026 Project Timothy Fund Uganda</p>
     </footer>
 
@@ -265,10 +265,12 @@
                 <button class="ql-link"></button>
                 <button class="ql-list" value="ordered"></button>
                 <button class="ql-list" value="bullet"></button>
+                <button class="ql-image" title="Insert Image"></button>
                 <button class="ql-clean"></button>
             </div>
             <div id="quill-editor-container" class="quill-editor-container"></div>
             <input type="hidden" id="document-slide-id">
+            <input type="file" id="document-image-upload" accept="image/*" style="display: none;">
             <div class="modal-actions">
                 <button class="btn btn-text" onclick="closeDocumentEditor()">Cancel</button>
                 <button class="btn btn-primary" id="btn-save-document">Save Document</button>

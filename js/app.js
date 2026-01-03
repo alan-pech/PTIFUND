@@ -6,7 +6,7 @@
  */
 
 // --- Constants & State ---
-const APP_VERSION = 'v1.0.074';
+const APP_VERSION = 'v1.0.075';
 const ADMIN_ROUTE_SECRET = 'admin-portal'; // Accessible via index.html#admin-portal
 
 let currentUser = null;
@@ -2112,11 +2112,22 @@ async function openDocumentEditor(slideId) {
         const toolbar = document.getElementById('quill-toolbar');
         quillInstance = new Quill(editorContainer, {
             modules: {
-                toolbar: toolbar
+                toolbar: {
+                    container: toolbar,
+                    handlers: {
+                        image: selectLocalImage
+                    }
+                }
             },
             theme: 'snow',
             placeholder: 'Write your document content here...'
         });
+
+        // Initialize Upload Listener
+        const fileInput = document.getElementById('document-image-upload');
+        if (fileInput) {
+            fileInput.onchange = uploadEditorImage;
+        }
     }
 
     // Load existing document if it exists
@@ -2202,15 +2213,75 @@ async function saveDocument() {
         // Refresh the current view if we're on the edit page
         const hash = window.location.hash;
         if (hash.startsWith('#admin/edit/')) {
-            const hash = window.location.hash;
-            if (hash.startsWith('#admin/edit/')) {
-                const currentPostId = hash.split('/')[2]; // Extract existing post id from URL
-                renderAdminEditGallery(document.getElementById('edit-view-content'), currentPostId);
-            }
+            const currentPostId = hash.split('/')[2]; // Extract existing post id from URL
+            renderAdminEditGallery(document.getElementById('edit-view-content'), currentPostId);
         }
     } catch (err) {
         console.error('[Document] Error saving document:', err);
         showToast('Error saving document: ' + err.message, 'error');
+    }
+}
+
+function selectLocalImage() {
+    console.log('[Document] Image button clicked');
+    const input = document.getElementById('document-image-upload');
+    if (input) input.click();
+}
+
+async function uploadEditorImage() {
+    const input = document.getElementById('document-image-upload');
+    const file = input.files[0];
+
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+        showToast('Please select a valid image file', 'warning');
+        return;
+    }
+
+    try {
+        console.log('[Document] Uploading image...', file.name);
+        showToast('Uploading image...', 'info');
+
+        // Ensure R2 Client is ready
+        if (!r2Client) await initR2Client();
+        const { PutObjectCommand } = await ensureS3SDK();
+
+        // Check file size (max 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+            throw new Error('Image too large. Max size is 5MB.');
+        }
+
+        const timestamp = Date.now();
+        const key = `editor-uploads/${timestamp}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+
+        const command = new PutObjectCommand({
+            Bucket: R2_CONFIG.bucketName,
+            Key: key,
+            Body: file,
+            ContentType: file.type
+        });
+
+        await r2Client.send(command);
+
+        const publicUrl = `${R2_CONFIG.publicUrl}/${key}`;
+        console.log('[Document] Image uploaded:', publicUrl);
+
+        // Insert image into editor
+        const range = quillInstance.getSelection();
+        const index = range ? range.index : quillInstance.getLength();
+        quillInstance.insertEmbed(index, 'image', publicUrl);
+
+        // Move cursor after image
+        quillInstance.setSelection(index + 1);
+
+        showToast('Image uploaded successfully', 'success');
+
+    } catch (err) {
+        console.error('[Document] Image upload failed:', err);
+        showToast('Failed to upload image: ' + err.message, 'error');
+    } finally {
+        input.value = ''; // Reset input
     }
 }
 
