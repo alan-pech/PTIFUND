@@ -6,7 +6,7 @@
  */
 
 // --- Constants & State ---
-const APP_VERSION = 'v1.0.034';
+const APP_VERSION = 'v1.0.035';
 const ADMIN_ROUTE_SECRET = 'admin-portal'; // Accessible via index.html#admin-portal
 
 let currentUser = null;
@@ -1500,11 +1500,19 @@ function initDragAndDrop(postId) {
         if (item.classList.contains('type-asset')) {
             // Asset context menu
             const wrapper = item.closest('.item-wrapper');
+            const slideGroup = item.closest('.slide-group');
+
+            console.log('[Gallery] Asset menu triggered:', {
+                assetType: wrapper?.dataset.assetType,
+                url: wrapper?.dataset.url,
+                slideId: slideGroup?.dataset.slideId
+            });
+
             const assetData = {
                 type: 'asset',
                 assetType: wrapper.dataset.assetType,
                 url: wrapper.dataset.url,
-                slideId: item.closest('.slide-group').dataset.slideId
+                slideId: slideGroup.dataset.slideId
             };
             showContextMenu(pageX, pageY, assetData);
         } else {
@@ -1832,6 +1840,8 @@ async function openVideoUploader(slide) {
 }
 
 async function deleteVideo(slideId, videoUrl) {
+    if (!(await showConfirm('Are you sure you want to remove this video recording?'))) return;
+
     try {
         // 1. Storage Cleanup (R2)
         if (videoUrl) {
