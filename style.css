@@ -349,8 +349,8 @@ textarea {
 
 #admin-content {
     width: 100%;
-    max-width: 900px;
-    /* More centered and narrower as requested */
+    max-width: 1200px;
+    /* Wider for gallery view */
 }
 
 .admin-footer {
@@ -419,8 +419,9 @@ textarea {
 
 .admin-header-row {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-start;
     align-items: center;
+    gap: 2rem;
     margin-bottom: 2.5rem;
 }
 
@@ -1182,9 +1183,57 @@ textarea {
     box-shadow: 0 0 0 4px rgba(211, 84, 0, 0.1);
 }
 
-#admin-login-view .btn-primary {
-    padding: 1rem;
-    font-size: 1.1rem;
-    font-weight: 600;
-    margin-top: 1rem;
+/* Full-Page Admin Editor */
+.edit-page-layout {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 2rem 3rem;
+}
+
+.edit-page-header {
+    margin-bottom: 3rem;
+    border-bottom: 2px solid #edf2f7;
+    padding-bottom: 2rem;
+}
+
+.header-top {
+    margin-bottom: 1rem;
+}
+
+.edit-page-header h1 {
+    font-size: 3rem;
+    color: var(--color-dark);
+    margin: 0;
+}
+
+.edit-controls-row {
+    margin-bottom: 3rem;
+}
+
+.edit-card {
+    padding: 1.5rem 2rem;
+}
+
+.full-width-gallery {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)) !important;
+    gap: 2rem !important;
+}
+
+.edit-view-content {
+    width: 100%;
+}
+
+@media (max-width: 768px) {
+    .edit-page-layout {
+        padding: 1rem;
+    }
+
+    .edit-page-header h1 {
+        font-size: 2rem;
+    }
+
+    .full-width-gallery {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)) !important;
+        gap: 1rem !important;
+    }
 }

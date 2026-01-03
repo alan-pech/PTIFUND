@@ -6,7 +6,7 @@
  */
 
 // --- Constants & State ---
-const APP_VERSION = 'v1.0.019';
+const APP_VERSION = 'v1.0.021';
 const ADMIN_ROUTE_SECRET = 'admin-portal'; // Accessible via index.html#admin-portal
 
 let currentUser = null;
@@ -394,16 +394,20 @@ function handleAdminRoutes(hash) {
 
     switch (subRoute) {
         case 'posts':
+            showView('admin-dashboard-view');
             renderAdminPosts(adminContent);
             break;
         case 'edit':
+            showView('admin-edit-view');
             const postId = hash.split('/')[2];
-            renderAdminEditGallery(adminContent, postId);
+            renderAdminEditGallery(document.getElementById('edit-view-content'), postId);
             break;
         case 'subscribers':
+            showView('admin-dashboard-view');
             renderAdminSubscribers(adminContent);
             break;
         case 'comments':
+            showView('admin-dashboard-view');
             renderAdminComments(adminContent);
             break;
         default:
@@ -1250,31 +1254,35 @@ async function loadAdminPosts() {
 
 async function renderAdminEditGallery(container, postId) {
     const { data: post } = await supabaseClient.from('posts').select('*').eq('id', postId).single();
+    if (!post) {
+        container.innerHTML = '<p class="error">Post not found.</p>';
+        return;
+    }
     const { data: slides } = await supabaseClient.from('slides').select('*').eq('post_id', postId).order('order_index');
 
-    container.innerHTML = `
-        <div class="admin-header-row">
-            <div class="header-left">
-                <button class="btn btn-text" onclick="window.location.hash='#admin/posts'">← Back</button>
-                <h1>Edit Post</h1>
-            </div>
-        </div>
+    // Update the title in the full-page layout wrapper
+    const titleEl = document.getElementById('edit-view-title');
+    if (titleEl) titleEl.textContent = post.title;
 
-        <div class="card">
-            <h3>Post Title</h3>
-            <div class="input-row">
-                <input type="text" id="edit-post-title" value="${post.title}" placeholder="Enter post title">
-                <button class="btn btn-secondary" onclick="updatePostTitle('${post.id}')">Update Title</button>
+    container.innerHTML = `
+        <div class="edit-controls-row">
+            <div class="card edit-card">
+                <h3>Post Settings</h3>
+                <div class="input-row">
+                    <input type="text" id="edit-post-title" value="${post.title}" placeholder="Update title...">
+                    <button class="btn btn-primary" onclick="updatePostTitle('${post.id}')">Update Title</button>
+                    <button class="btn btn-text delete" onclick="deletePost('${post.id}')" style="margin-left: auto;">Delete Post</button>
+                </div>
             </div>
         </div>
 
         <div class="manage-slides-section">
             <div class="section-header">
-                <h2>Manage Slides</h2>
-                <p class="help-text">Drag slides to reorder. Right-click on a slide to see options.</p>
+                <h2>Slides Gallery</h2>
+                <p class="help-text">Drag to reorder. Right-click for options (audio, video, delete).</p>
             </div>
             
-            <div id="gallery-container" class="slides-grid">
+            <div id="gallery-container" class="slides-grid full-width-gallery">
                 ${(slides || []).map(slide => `
                     <div class="slide-card-wrapper">
                         <div class="gallery-item" draggable="true" data-id="${slide.id}" data-image="${slide.image_url}" data-audio="${slide.audio_url || ''}" data-video="${slide.video_url || ''}" data-video-description="${slide.video_description || ''}">
@@ -1288,8 +1296,8 @@ async function renderAdminEditGallery(container, postId) {
             </div>
         </div>
 
-        <div class="card">
-            <h3>Add More Slides</h3>
+        <div class="card" style="margin-top: 2rem;">
+            <h3>Add New Slides</h3>
             <div class="upload-zone" onclick="document.getElementById('slide-files').click()">
                 <input type="file" id="slide-files" multiple accept=".png, image/png" style="display: none;" onchange="uploadNewSlides('${post.id}')">
                 <p>📁 Click to choose PNG files or drag and drop here</p>

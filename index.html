@@ -83,9 +83,6 @@
                             <button id="btn-nav-new-post" class="navbar-btn primary-nav-btn">
                                 <span class="nav-icon">✨</span> New Post
                             </button>
-                            <a href="#admin/posts" class="navbar-item" data-route="posts">
-                                <span class="nav-icon">📝</span> Posts
-                            </a>
                             <a href="#admin/comments" class="navbar-item" data-route="comments">
                                 <span class="nav-icon">💬</span> Moderation
                             </a>
@@ -103,8 +100,23 @@
                         </div>
                         <button id="btn-refresh-storage" class="btn-refresh" title="Refresh usage">🔄</button>
                     </div>
-                    <div class="app-version">v1.0.019</div>
+                    <div class="app-version">v1.0.021</div>
                 </footer>
+            </div>
+        </section>
+
+        <section id="admin-edit-view" class="view hidden">
+            <div class="edit-page-layout">
+                <header class="edit-page-header">
+                    <div class="header-top">
+                        <button class="btn btn-text" onclick="window.location.hash='#admin/posts'">← Back to
+                            Dashboard</button>
+                    </div>
+                    <h1 id="edit-view-title">Post Title</h1>
+                </header>
+                <div id="edit-view-content">
+                    <!-- Admin Edit Content -->
+                </div>
             </div>
         </section>
 
