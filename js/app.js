@@ -6,7 +6,7 @@
  */
 
 // --- Constants & State ---
-const APP_VERSION = 'v1.0.035';
+const APP_VERSION = 'v1.0.036';
 const ADMIN_ROUTE_SECRET = 'admin-portal'; // Accessible via index.html#admin-portal
 
 let currentUser = null;
@@ -1626,20 +1626,21 @@ async function uploadNewSlides(postId) {
 
     try {
         // Get current max order
-        const { data: slides } = await supabaseClient.from('slides').select('order_index').eq('post_id', postId).order('order_index', { ascending: false }).limit(1);
-        let nextIndex = slides.length > 0 ? slides[0].order_index + 1 : 0;
+        const { data: currentSlides } = await supabaseClient.from('slides').select('order_index').eq('post_id', postId).order('order_index', { ascending: false }).limit(1);
+        let nextIndex = currentSlides.length > 0 ? currentSlides[0].order_index + 1 : 0;
+
+        const { PutObjectCommand } = await ensureS3SDK();
+        if (!r2Client) await initR2Client();
 
         for (const file of files) {
-            const fileName = `${postId}_${Date.now()}_${file.name}`;
-            const filePath = `${postId}/slide_${nextIndex}_${Date.now()}.png`;
+            const safeName = file.name.replace(/[^a-z0-9.]/gi, '_');
+            const filePath = `${postId}/slide_${nextIndex}_${Date.now()}_${safeName}`;
 
-            const { PutObjectCommand } = await ensureS3SDK();
             console.log('[R2] Uploading slide:', filePath);
-            const arrayBuffer = await file.arrayBuffer();
             await r2Client.send(new PutObjectCommand({
                 Bucket: R2_CONFIG.bucketName,
                 Key: filePath,
-                Body: new Uint8Array(arrayBuffer),
+                Body: file,
                 ContentType: file.type
             }));
             console.log('[R2] Slide upload complete');
@@ -1794,15 +1795,17 @@ async function openVideoUploader(slide) {
 
             if (file) {
                 statusDiv.textContent = 'Uploading video to R2...';
-                const filePath = `video/${slide.id}_${Date.now()}_${file.name}`;
+                const safeName = file.name.replace(/[^a-z0-9.]/gi, '_');
+                const filePath = `video/${slide.id}_${Date.now()}_${safeName}`;
                 console.log('[R2] Uploading video:', filePath, 'Type:', file.type, 'Size:', file.size);
 
                 const { PutObjectCommand } = await ensureS3SDK();
-                const arrayBuffer = await file.arrayBuffer();
+                if (!r2Client) await initR2Client();
+
                 await r2Client.send(new PutObjectCommand({
                     Bucket: R2_CONFIG.bucketName,
                     Key: filePath,
-                    Body: new Uint8Array(arrayBuffer),
+                    Body: file,
                     ContentType: file.type
                 }));
                 console.log('[R2] Video upload complete');
