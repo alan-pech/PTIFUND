@@ -6,7 +6,7 @@
  */
 
 // --- Constants & State ---
-const APP_VERSION = 'v1.0.041';
+const APP_VERSION = 'v1.0.042';
 const ADMIN_ROUTE_SECRET = 'admin-portal'; // Accessible via index.html#admin-portal
 
 let currentUser = null;
@@ -1965,3 +1965,12 @@ async function convertPDFToImages(pdfFile) {
 
     return slides;
 }
+
+// --- Global Exposure for Module Functions ---
+// These are attached to window because they are used in inline onclick/onchange HTML attributes
+window.scrollToSlide = scrollToSlide;
+window.deleteSubscriber = deleteSubscriber;
+window.moderateComment = moderateComment;
+window.deletePost = deletePost;
+window.updatePostTitle = updatePostTitle;
+window.uploadNewSlides = uploadNewSlides;
