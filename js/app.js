@@ -6,7 +6,7 @@
  */
 
 // --- Constants & State ---
-const APP_VERSION = 'v1.0.071';
+const APP_VERSION = 'v1.0.072';
 const ADMIN_ROUTE_SECRET = 'admin-portal'; // Accessible via index.html#admin-portal
 
 let currentUser = null;
@@ -536,6 +536,13 @@ async function loadLatestPost() {
                 `).join('')}
             </aside>
             <article class="post-detail">
+                ${post.document_html ? `
+                    <div class="post-document">
+                        <div class="document-content">
+                            ${post.document_html}
+                        </div>
+                    </div>
+                ` : ''}
                 <div class="slides-stack">
                     <div class="public-post-title">${post.title}</div>
                     ${slides.map((slide, index) => `
@@ -666,6 +673,13 @@ async function loadPostDetails(id) {
                 `).join('')}
             </aside>
             <article class="post-detail">
+                ${post.document_html ? `
+                    <div class="post-document">
+                        <div class="document-content">
+                            ${post.document_html}
+                        </div>
+                    </div>
+                ` : ''}
                 <div class="slides-stack">
                     <div class="public-post-title">${post.title}</div>
                     ${slides.map((slide, index) => `
@@ -1235,7 +1249,7 @@ async function deleteSubscriber(id) {
     }
 }
 
-function showContextMenu(x, y, data) {
+function showContextMenu(x, y, data, postId) {
     // Remove existing menu
     const existing = document.getElementById('custom-context-menu');
     if (existing) existing.remove();
@@ -1273,6 +1287,9 @@ function showContextMenu(x, y, data) {
             <div class="menu-item" id="menu-video-action">
                 🎥 ${hasVideo ? 'Edit' : 'Add'} Video
             </div>
+            <div class="menu-item" id="menu-document-action">
+                📄 Document
+            </div>
             <div class="menu-item delete" id="menu-delete-slide">🗑️ Delete Slide</div>
         `;
 
@@ -1292,6 +1309,13 @@ function showContextMenu(x, y, data) {
             menu.remove();
         };
 
+        document.getElementById('menu-document-action').onclick = async () => {
+            if (postId) {
+                openDocumentEditor(postId);
+            }
+            menu.remove();
+        };
+
         document.getElementById('menu-delete-slide').onclick = () => {
             deleteSlide(data.id);
             menu.remove();
@@ -1301,6 +1325,7 @@ function showContextMenu(x, y, data) {
     // Close on click elsewhere
     document.addEventListener('click', () => menu.remove(), { once: true });
 }
+
 
 
 async function deleteSlide(slideId) {
@@ -2044,6 +2069,114 @@ async function convertPDFToImages(pdfFile) {
     return slides;
 }
 
+// --- Document Editor Functions ---
+let quillInstance = null;
+
+async function openDocumentEditor(postId) {
+    console.log('[Document] Opening editor for post:', postId);
+
+    const modal = document.getElementById('modal-document-editor');
+    const postIdInput = document.getElementById('document-post-id');
+    const editorContainer = document.getElementById('quill-editor-container');
+
+    // Store the post ID
+    postIdInput.value = postId;
+
+    // Initialize Quill if not already initialized
+    if (!quillInstance) {
+        // Wait for Quill to load if it hasn't yet (simple retry)
+        if (typeof Quill === 'undefined') {
+            console.warn('Quill library not loaded yet');
+            showToast('Document editor resources are loading, please try again in a moment.', 'warning');
+            return;
+        }
+
+        const toolbar = document.getElementById('quill-toolbar');
+        quillInstance = new Quill(editorContainer, {
+            modules: {
+                toolbar: toolbar
+            },
+            theme: 'snow',
+            placeholder: 'Write your document content here...'
+        });
+    }
+
+    // Load existing document if it exists
+    try {
+        const { data: post, error } = await supabaseClient
+            .from('posts')
+            .select('document_html')
+            .eq('id', postId)
+            .single();
+
+        if (error) throw error;
+
+        if (post && post.document_html) {
+            quillInstance.root.innerHTML = post.document_html;
+        } else {
+            quillInstance.setText('');
+        }
+    } catch (err) {
+        console.error('[Document] Error loading document:', err);
+        showToast('Error loading document: ' + err.message, 'error');
+        quillInstance.setText('');
+    }
+
+    // Show modal
+    modal.classList.remove('hidden');
+
+    // Set up save button handler
+    const saveBtn = document.getElementById('btn-save-document');
+    saveBtn.onclick = () => saveDocument();
+}
+
+function closeDocumentEditor() {
+    const modal = document.getElementById('modal-document-editor');
+    modal.classList.add('hidden');
+
+    // Clear the editor
+    if (quillInstance) {
+        quillInstance.setText('');
+    }
+}
+
+async function saveDocument() {
+    const postIdInput = document.getElementById('document-post-id');
+    const postId = postIdInput.value;
+
+    if (!postId) {
+        showToast('Error: No post ID found', 'error');
+        return;
+    }
+
+    // Get HTML content from Quill
+    const htmlContent = quillInstance.root.innerHTML;
+
+    // Check if content is empty (just <p><br></p> means empty)
+    const isEmpty = htmlContent === '<p><br></p>' || htmlContent.trim() === '';
+
+    try {
+        const { error } = await supabaseClient
+            .from('posts')
+            .update({ document_html: isEmpty ? null : htmlContent })
+            .eq('id', postId);
+
+        if (error) throw error;
+
+        showToast(isEmpty ? 'Document cleared successfully' : 'Document saved successfully', 'success');
+        closeDocumentEditor();
+
+        // Refresh the current view if we're on the edit page
+        const hash = window.location.hash;
+        if (hash.startsWith('#admin/edit/')) {
+            renderAdminEditGallery(document.getElementById('edit-view-content'), postId);
+        }
+    } catch (err) {
+        console.error('[Document] Error saving document:', err);
+        showToast('Error saving document: ' + err.message, 'error');
+    }
+}
+
 async function purgeOrphanedFiles() {
     if (!currentUser) return;
     if (!(await showConfirm('This will permanently delete ALL files in storage that aren\'t currently linked to a post. This cannot be undone. would you like to proceed?', 'Storage Deep Purge'))) return;
@@ -2129,3 +2262,6 @@ window.deleteVideo = deleteVideo;
 window.purgeOrphanedFiles = purgeOrphanedFiles;
 window.openAudioRecorder = openAudioRecorder;
 window.deleteAudio = deleteAudio;
+window.openDocumentEditor = openDocumentEditor;
+window.closeDocumentEditor = closeDocumentEditor;
+window.saveDocument = saveDocument;

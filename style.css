@@ -1586,3 +1586,193 @@ textarea {
     opacity: 1 !important;
     cursor: grabbing !important;
 }
+
+/* Document Editor Modal Styles */
+.document-editor-modal {
+    max-width: 900px;
+    width: 95%;
+    padding: 0;
+    overflow: hidden;
+}
+
+.document-editor-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem 2rem;
+    border-bottom: 1px solid #e2e8f0;
+    background: linear-gradient(135deg, var(--color-orange), #e67e22);
+}
+
+.document-editor-header h3 {
+    margin: 0;
+    color: white;
+    font-size: 1.5rem;
+}
+
+.btn-close-modal {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: white;
+    font-size: 1.5rem;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.btn-close-modal:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: rotate(90deg);
+}
+
+.quill-toolbar {
+    padding: 1rem 2rem;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.quill-editor-container {
+    height: 400px;
+    margin: 0 2rem;
+    margin-top: 1.5rem;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+}
+
+.document-editor-modal .modal-actions {
+    padding: 1.5rem 2rem;
+    border-top: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+
+/* Quill Editor Content Styles */
+.ql-editor {
+    font-family: var(--font-body);
+    font-size: 1rem;
+    line-height: 1.6;
+    min-height: 350px;
+    padding: 1.5rem;
+}
+
+.ql-editor h1,
+.ql-editor h2,
+.ql-editor h3 {
+    font-family: var(--font-heading);
+    margin-top: 1.5rem;
+    margin-bottom: 0.75rem;
+    color: var(--color-dark);
+}
+
+.ql-editor h1 {
+    font-size: 2rem;
+    color: var(--color-orange);
+}
+
+.ql-editor h2 {
+    font-size: 1.5rem;
+}
+
+.ql-editor h3 {
+    font-size: 1.25rem;
+}
+
+.ql-editor p {
+    margin-bottom: 1rem;
+}
+
+.ql-editor a {
+    color: var(--color-orange);
+    text-decoration: underline;
+}
+
+.ql-editor a:hover {
+    color: #A04000;
+}
+
+/* Public Document Display Styles */
+.post-document {
+    background: white;
+    border-radius: 12px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    box-shadow: var(--shadow);
+}
+
+.document-content {
+    font-family: var(--font-body);
+    font-size: 1rem;
+    line-height: 1.6;
+    color: var(--color-dark);
+}
+
+.document-content h1,
+.document-content h2,
+.document-content h3 {
+    font-family: var(--font-heading);
+    margin-top: 1.5rem;
+    margin-bottom: 0.75rem;
+    color: var(--color-dark);
+}
+
+.document-content h1 {
+    font-size: 2rem;
+    color: var(--color-orange);
+    border-bottom: 3px solid var(--color-orange);
+    padding-bottom: 0.5rem;
+}
+
+.document-content h2 {
+    font-size: 1.5rem;
+    color: var(--color-green);
+}
+
+.document-content h3 {
+    font-size: 1.25rem;
+}
+
+.document-content p {
+    margin-bottom: 1rem;
+}
+
+.document-content a {
+    color: var(--color-orange);
+    text-decoration: underline;
+    font-weight: 600;
+    transition: color 0.2s;
+}
+
+.document-content a:hover {
+    color: #A04000;
+}
+
+.document-content ul,
+.document-content ol {
+    margin-left: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.document-content li {
+    margin-bottom: 0.5rem;
+}
+
+.document-content strong {
+    font-weight: 700;
+    color: var(--color-dark);
+}
+
+.document-content em {
+    font-style: italic;
+}
+
+.document-content u {
+    text-decoration: underline;
+}

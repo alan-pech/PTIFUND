@@ -13,6 +13,8 @@
     <link rel="stylesheet" href="style.css">
     <!-- Video.js CSS -->
     <link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet" />
+    <!-- Quill Editor CSS -->
+    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
 </head>
 
 <body>
@@ -102,7 +104,7 @@
                         <button id="btn-purge-storage" class="btn-purge" title="Purge orphaned files"
                             onclick="purgeOrphanedFiles()">🗑️ Purge</button>
                     </div>
-                    <div class="app-version">v1.0.071</div>
+                    <div class="app-version">v1.0.072</div>
                 </footer>
             </div>
         </section>
@@ -206,7 +208,7 @@
     </main>
 
     <footer class="app-footer">
-        <div class="version">v1.0.071</div>
+        <div class="version">v1.0.072</div>
         <p>&copy; 2026 Project Timothy Fund Uganda</p>
     </footer>
 
@@ -240,10 +242,46 @@
         </div>
     </div>
 
+    <!-- Document Editor Modal -->
+    <div id="modal-document-editor" class="modal hidden">
+        <div class="modal-content document-editor-modal">
+            <div class="document-editor-header">
+                <h3>Document Editor</h3>
+                <button class="btn-close-modal" onclick="closeDocumentEditor()">✕</button>
+            </div>
+            <div id="quill-toolbar" class="quill-toolbar">
+                <!-- Quill Toolbar -->
+                <select class="ql-header">
+                    <option value="1">Heading 1</option>
+                    <option value="2">Heading 2</option>
+                    <option value="3">Heading 3</option>
+                    <option selected>Normal</option>
+                </select>
+                <button class="ql-bold"></button>
+                <button class="ql-italic"></button>
+                <button class="ql-underline"></button>
+                <select class="ql-color"></select>
+                <select class="ql-background"></select>
+                <button class="ql-link"></button>
+                <button class="ql-list" value="ordered"></button>
+                <button class="ql-list" value="bullet"></button>
+                <button class="ql-clean"></button>
+            </div>
+            <div id="quill-editor-container" class="quill-editor-container"></div>
+            <input type="hidden" id="document-post-id">
+            <div class="modal-actions">
+                <button class="btn btn-text" onclick="closeDocumentEditor()">Cancel</button>
+                <button class="btn btn-primary" id="btn-save-document">Save Document</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <script src="https://vjs.zencdn.net/8.10.0/video.min.js"></script>
+    <!-- Quill Editor JS -->
+    <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
     <!-- AWS SDK for JavaScript (S3 Client) is loaded dynamically in app.js -->
     <script src="js/config.js"></script>
     <!-- PDF.js for PDF to Slide conversion -->
