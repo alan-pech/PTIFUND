@@ -6,7 +6,7 @@
  */
 
 // --- Constants & State ---
-const APP_VERSION = 'v1.0.049';
+const APP_VERSION = 'v1.0.050';
 const ADMIN_ROUTE_SECRET = 'admin-portal'; // Accessible via index.html#admin-portal
 
 let currentUser = null;
@@ -765,6 +765,9 @@ function initNewPostModal() {
     btnNewPost.onclick = () => {
         modal.classList.remove('hidden');
         titleInput.value = '';
+        selectedFiles = [];
+        folderInput.value = '';
+        filesInput.value = '';
         document.getElementById('upload-preview').innerHTML = '';
     };
 
@@ -2063,7 +2066,7 @@ async function convertPDFToImages(pdfFile) {
 
 async function purgeOrphanedFiles() {
     if (!currentUser) return;
-    if (!(await showConfirm('This will permanently delete ALL files in storage that aren\'t currently linked to a post. This cannot be undone. Root you like to proceed?', 'Storage Deep Purge'))) return;
+    if (!(await showConfirm('This will permanently delete ALL files in storage that aren\'t currently linked to a post. This cannot be undone. would you like to proceed?', 'Storage Deep Purge'))) return;
 
     const btn = document.getElementById('btn-purge-storage');
     if (btn) {
