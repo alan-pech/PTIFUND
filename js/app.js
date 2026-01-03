@@ -6,7 +6,7 @@
  */
 
 // --- Constants & State ---
-const APP_VERSION = 'v1.0.063';
+const APP_VERSION = 'v1.0.064';
 const ADMIN_ROUTE_SECRET = 'admin-portal'; // Accessible via index.html#admin-portal
 
 let currentUser = null;
@@ -1488,7 +1488,7 @@ async function renderAdminEditGallery(container, postId) {
             <div id="gallery-container" class="slides-grid full-width-gallery">
                 ${(slides || []).map(slide => `
                     <div class="slide-group" data-slide-id="${slide.id}">
-                        <div class="slide-card-wrapper item-wrapper" data-type="slide" data-id="${slide.id}" draggable="true">
+                        <div class="slide-card-wrapper item-wrapper" data-type="slide" data-id="${slide.id}">
                             <div class="gallery-item" data-id="${slide.id}" data-image="${slide.image_url}" data-audio="${slide.audio_url || ''}" data-audio-description="${slide.audio_description || ''}" data-video="${slide.video_url || ''}" data-video-description="${slide.video_description || ''}">
                                 <img src="${slide.image_url}" loading="lazy">
                             </div>
@@ -1549,81 +1549,20 @@ async function updatePostTitle(postId) {
 
 function initDragAndDrop(postId) {
     const gallery = document.getElementById('gallery-container');
-    let draggedElement = null;
-    let dragType = null;
-    let placeholder = null;
+    if (!gallery) return;
 
-    gallery.addEventListener('dragstart', (e) => {
-        const itemWrapper = e.target.closest('.item-wrapper');
-        if (!itemWrapper) return;
-
-        if (itemWrapper.dataset.type === 'slide') {
-            draggedElement = itemWrapper.closest('.slide-group');
-            dragType = 'group';
-        } else {
-            draggedElement = itemWrapper;
-            dragType = 'asset';
+    // Initialize SortableJS
+    const sortable = Sortable.create(gallery, {
+        animation: 150,
+        handle: '.gallery-item',
+        draggable: '.slide-group',
+        ghostClass: 'sortable-ghost',
+        chosenClass: 'sortable-chosen',
+        dragClass: 'sortable-drag',
+        onEnd: function(evt) {
+            // Update the order in the database after drag ends
+            updateSlideOrder(postId);
         }
-
-        if (draggedElement) {
-            draggedElement.classList.add('dragging');
-            e.dataTransfer.effectAllowed = 'move';
-            e.dataTransfer.setData('text/html', draggedElement.innerHTML);
-            
-            // Create a placeholder
-            placeholder = document.createElement('div');
-            placeholder.className = 'drag-placeholder';
-            placeholder.style.height = draggedElement.offsetHeight + 'px';
-            placeholder.style.border = '2px dashed var(--color-orange)';
-            placeholder.style.borderRadius = '12px';
-            placeholder.style.margin = '0';
-            placeholder.style.backgroundColor = '#fff7ed';
-        }
-    });
-
-    gallery.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        if (!draggedElement) return;
-
-        const afterElement = getElementAtPosition(gallery, e.clientY, dragType, draggedElement);
-        
-        // Remove placeholder from current position
-        if (placeholder.parentNode) {
-            placeholder.parentNode.removeChild(placeholder);
-        }
-        
-        // Insert placeholder at new position
-        if (afterElement == null) {
-            gallery.appendChild(placeholder);
-        } else {
-            gallery.insertBefore(placeholder, afterElement);
-        }
-    });
-
-    gallery.addEventListener('drop', (e) => {
-        e.preventDefault();
-        if (!draggedElement || !placeholder) return;
-        
-        // Move the actual element to where the placeholder is
-        if (placeholder.parentNode) {
-            placeholder.parentNode.insertBefore(draggedElement, placeholder);
-            placeholder.parentNode.removeChild(placeholder);
-        }
-    });
-
-    gallery.addEventListener('dragend', (e) => {
-        if (!draggedElement) return;
-        
-        // Clean up
-        draggedElement.classList.remove('dragging');
-        if (placeholder && placeholder.parentNode) {
-            placeholder.parentNode.removeChild(placeholder);
-        }
-        
-        updateSlideOrder(postId);
-        draggedElement = null;
-        dragType = null;
-        placeholder = null;
     });
 
     // Event Delegation for Context Menu
@@ -1678,33 +1617,6 @@ function initDragAndDrop(postId) {
             handleContextMenu(pageX, pageY, item);
         }
     });
-}
-
-function getElementAtPosition(container, y, dragType, draggedElement) {
-    const selector = dragType === 'group' ? '.slide-group' : '.item-wrapper';
-    const elements = [...container.querySelectorAll(selector)];
-    
-    let closestElement = null;
-    let closestDistance = Number.POSITIVE_INFINITY;
-    
-    elements.forEach(element => {
-        // Skip the dragged element and placeholder
-        if (element === draggedElement || element.classList.contains('drag-placeholder')) {
-            return;
-        }
-        
-        const box = element.getBoundingClientRect();
-        const elementMiddle = box.top + box.height / 2;
-        const distance = y - elementMiddle;
-        
-        // If cursor is above this element and it's closer than previous closest
-        if (distance < 0 && Math.abs(distance) < closestDistance) {
-            closestDistance = Math.abs(distance);
-            closestElement = element;
-        }
-    });
-    
-    return closestElement;
 }
 
 async function updateSlideOrder(postId) {

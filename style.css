@@ -1542,3 +1542,20 @@ textarea {
     border-radius: 12px;
     padding: 0.5rem;
 }
+
+/* SortableJS Classes */
+.sortable-ghost {
+    opacity: 0.4;
+    background: #fff7ed !important;
+    border: 2px dashed var(--color-orange) !important;
+    border-radius: 12px;
+}
+
+.sortable-chosen {
+    cursor: grabbing !important;
+}
+
+.sortable-drag {
+    opacity: 1 !important;
+    cursor: grabbing !important;
+}
