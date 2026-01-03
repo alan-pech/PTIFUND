@@ -6,7 +6,7 @@
  */
 
 // --- Constants & State ---
-const APP_VERSION = 'v1.0.029';
+const APP_VERSION = 'v1.0.031';
 const ADMIN_ROUTE_SECRET = 'admin-portal'; // Accessible via index.html#admin-portal
 
 let currentUser = null;
@@ -483,6 +483,26 @@ function handleAdminRoutes(hash) {
     calculateStorageUsage();
 }
 
+// --- Gesture Helpers ---
+function addLongPressListener(el, callback) {
+    let timer;
+    const duration = 600;
+
+    const start = (e) => {
+        const touch = e.touches ? e.touches[0] : e;
+        timer = setTimeout(() => {
+            callback(touch.pageX, touch.pageY);
+        }, duration);
+    };
+
+    const cancel = () => clearTimeout(timer);
+
+    el.addEventListener('touchstart', start, { passive: true });
+    el.addEventListener('touchend', cancel);
+    el.addEventListener('touchmove', cancel);
+    el.addEventListener('touchcancel', cancel);
+}
+
 // --- UI Helpers ---
 function updateVersionDisplay() {
     const displays = document.querySelectorAll('.version, .app-version');
@@ -598,18 +618,24 @@ async function loadPostDetails(id) {
                                      ${slide.audio_description ? `<div class="audio-description">${slide.audio_description}</div>` : ''}
                                 </div>
                             ` : ''}
-                            ${slide.video_url ? `
-                                <div class="video-detail">
-                                    <video class="video-js vjs-big-play-centered vjs-theme-city" controls preload="auto" width="640" height="360">
-                                        <source src="${slide.video_url}" type="video/mp4">
-                                        <p class="vjs-no-js">
-                                            To view this video please enable JavaScript, and consider upgrading to a web browser that
-                                            <a href="https://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a>
-                                        </p>
-                                    </video>
-                                    ${slide.video_description ? `<div class="video-description">${slide.video_description}</div>` : ''}
-                                </div>
-                            ` : ''}
+                            ${slide.video_url ? (function () {
+            let type = 'video/mp4';
+            if (slide.video_url.toLowerCase().endsWith('.webm')) type = 'video/webm';
+            if (slide.video_url.toLowerCase().endsWith('.avi')) type = 'video/x-msvideo';
+
+            return `
+                                    <div class="video-detail">
+                                        <video class="video-js vjs-big-play-centered vjs-theme-city" controls preload="auto" width="640" height="360">
+                                            <source src="${slide.video_url}" type="${type}">
+                                            <p class="vjs-no-js">
+                                                To view this video please enable JavaScript, and consider upgrading to a web browser that
+                                                <a href="https://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a>
+                                            </p>
+                                        </video>
+                                        ${slide.video_description ? `<div class="video-description">${slide.video_description}</div>` : ''}
+                                    </div>
+                                `;
+        })() : ''}
                         </div>
                     `).join('')}
                 </div>
@@ -621,9 +647,7 @@ async function loadPostDetails(id) {
     initVideoPlayers();
 
     // If admin is viewing, allow editing/audio tagging
-    if (currentUser) {
-        attachAdminControlsToSlides(slides);
-    }
+    // Removed attachAdminControlsToSlides as per instruction.
 }
 
 // Scroll to specific slide
@@ -1129,18 +1153,6 @@ async function deleteSubscriber(id) {
     }
 }
 
-// --- Interaction Branding: Context Menu ---
-function attachAdminControlsToSlides(slides) {
-    const slideCards = document.querySelectorAll('.slide-card');
-    slideCards.forEach((card, index) => {
-        const slide = slides[index];
-        card.oncontextmenu = (e) => {
-            e.preventDefault();
-            showContextMenu(e.pageX, e.pageY, slide);
-        };
-    });
-}
-
 function showContextMenu(x, y, slide) {
     // Remove existing menu
     const existing = document.getElementById('custom-context-menu');
@@ -1354,7 +1366,10 @@ async function renderAdminEditGallery(container, postId) {
         <div class="manage-slides-section">
             <div class="section-header">
                 <h2>Slides Gallery</h2>
-                <p class="help-text">Drag slides (moves attached audio/video) or drag audio/video cards to re-assign them.</p>
+                <p class="help-text">
+                    Drag slides (moves attached assets) or assets to re-assign them. 
+                    <strong>${navigator.maxTouchPoints > 0 ? 'Long press' : 'Right-click'}</strong> a slide for more options.
+                </p>
             </div>
             
             <div id="gallery-container" class="slides-grid full-width-gallery">
@@ -1455,10 +1470,8 @@ function initDragAndDrop(postId) {
     });
 
     // Event Delegation for Context Menu
-    gallery.addEventListener('contextmenu', (e) => {
-        const item = e.target.closest('.gallery-item');
+    const handleContextMenu = (pageX, pageY, item) => {
         if (item && !item.classList.contains('type-asset')) {
-            e.preventDefault();
             const slide = {
                 id: item.dataset.id,
                 image_url: item.dataset.image,
@@ -1467,7 +1480,23 @@ function initDragAndDrop(postId) {
                 video_url: item.dataset.video || null,
                 video_description: item.dataset.videoDescription || null
             };
-            showContextMenu(e.pageX, e.pageY, slide, postId);
+            showContextMenu(pageX, pageY, slide, postId);
+        }
+    };
+
+    gallery.addEventListener('contextmenu', (e) => {
+        const item = e.target.closest('.gallery-item');
+        if (item && !item.classList.contains('type-asset')) {
+            e.preventDefault();
+            handleContextMenu(e.pageX, e.pageY, item);
+        }
+    });
+
+    // Mobile Long Press support
+    addLongPressListener(gallery, (pageX, pageY) => {
+        const item = document.elementFromPoint(pageX - window.scrollX, pageY - window.scrollY)?.closest('.gallery-item');
+        if (item) {
+            handleContextMenu(pageX, pageY, item);
         }
     });
 }
