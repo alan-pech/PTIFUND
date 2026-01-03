@@ -6,7 +6,7 @@
  */
 
 // --- Constants & State ---
-const APP_VERSION = 'v1.0.047';
+const APP_VERSION = 'v1.0.048';
 const ADMIN_ROUTE_SECRET = 'admin-portal'; // Accessible via index.html#admin-portal
 
 let currentUser = null;
@@ -1329,7 +1329,7 @@ async function renderAdminComments(container) {
     container.innerHTML = `
         <div class="admin-header-row">
             <div class="header-left">
-                <h1>Moderation</h1>
+                <h2 class="sub-page-title">Moderation Queue</h2>
             </div>
         </div>
         

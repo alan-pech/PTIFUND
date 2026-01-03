@@ -530,6 +530,14 @@ textarea {
     color: var(--color-dark);
 }
 
+.sub-page-title {
+    font-size: 1.25rem;
+    margin: 0;
+    color: var(--color-dark);
+    font-family: var(--font-primary);
+    font-weight: 700;
+}
+
 .toggle-group {
     display: flex;
     background: #f1f5f9;
@@ -1388,10 +1396,10 @@ textarea {
 }
 
 .comments-title {
-    font-size: 1.8rem;
+    font-size: 1.15rem;
     font-style: italic;
     color: var(--color-dark);
-    margin-bottom: 2.5rem;
+    margin-bottom: 2rem;
     padding-left: 0.5rem;
 }
 
@@ -1463,7 +1471,7 @@ textarea {
 
     .comments-title {
         padding-left: 1rem;
-        font-size: 1.5rem;
+        font-size: 1rem;
     }
 
     .user-comment {
