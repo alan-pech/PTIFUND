@@ -6,13 +6,19 @@
  */
 
 // --- Constants & State ---
-const APP_VERSION = 'v1.0.025';
+const APP_VERSION = 'v1.0.027';
 const ADMIN_ROUTE_SECRET = 'admin-portal'; // Accessible via index.html#admin-portal
 
 let currentUser = null;
 let currentView = 'home';
 let r2Client = null;
 let S3SDK = null;
+let secretSequence = {
+    phase: 1,
+    taps: 0,
+    lastTap: 0,
+    phase1CompleteTime: 0
+};
 
 // --- S3 / R2 Initialization ---
 async function ensureS3SDK() {
@@ -203,8 +209,67 @@ document.addEventListener('DOMContentLoaded', () => {
     initAuth();
     initR2Client();
     updateVersionDisplay();
+    initSecretAdminAccess();
     initAdminHooks();
 });
+
+function initSecretAdminAccess() {
+    const versionEls = document.querySelectorAll('.app-version, .version');
+    versionEls.forEach(el => {
+        el.style.cursor = 'pointer';
+        el.addEventListener('click', () => {
+            const now = Date.now();
+
+            // Phase 1: First 3 taps
+            if (secretSequence.phase === 1) {
+                if (now - secretSequence.lastTap > 1000) secretSequence.taps = 0;
+                secretSequence.taps++;
+                secretSequence.lastTap = now;
+
+                if (secretSequence.taps === 3) {
+                    secretSequence.phase = 2;
+                    secretSequence.phase1CompleteTime = now;
+                    console.log('[Secret] Phase 1 complete. Wait 3 seconds...');
+                }
+            }
+            // Phase 2: Wait 3 seconds, then 3 more taps
+            else if (secretSequence.phase === 2) {
+                if (now - secretSequence.phase1CompleteTime < 3000) {
+                    console.log('[Secret] Too soon! Resetting.');
+                    secretSequence.phase = 1;
+                    secretSequence.taps = 0;
+                    return;
+                }
+
+                if (now - secretSequence.phase1CompleteTime > 15000) {
+                    secretSequence.phase = 1;
+                    secretSequence.taps = 0;
+                    return;
+                }
+
+                if (secretSequence.taps === 3) {
+                    secretSequence.taps = 4;
+                    secretSequence.lastTap = now;
+                } else {
+                    if (now - secretSequence.lastTap > 1000) {
+                        secretSequence.phase = 1;
+                        secretSequence.taps = 0;
+                        return;
+                    }
+                    secretSequence.taps++;
+                    secretSequence.lastTap = now;
+                }
+
+                if (secretSequence.taps === 6) {
+                    console.log('[Secret] Access granted!');
+                    window.location.hash = '#' + ADMIN_ROUTE_SECRET;
+                    secretSequence.phase = 1;
+                    secretSequence.taps = 0;
+                }
+            }
+        });
+    });
+}
 
 function initAdminHooks() {
     const btnRefresh = document.getElementById('btn-refresh-storage');
@@ -420,7 +485,7 @@ function handleAdminRoutes(hash) {
 
 // --- UI Helpers ---
 function updateVersionDisplay() {
-    const displays = document.querySelectorAll('.version');
+    const displays = document.querySelectorAll('.version, .app-version');
     displays.forEach(el => el.textContent = APP_VERSION);
 }
 
@@ -947,7 +1012,8 @@ async function uploadAudio(slideId, blob, title) {
     const { error: dbErr } = await supabaseClient
         .from('slides')
         .update({
-            audio_url: publicUrl
+            audio_url: publicUrl,
+            audio_description: title
         })
         .eq('id', slideId);
 
@@ -971,7 +1037,10 @@ async function deleteAudio(slideId, audioUrl) {
         }
 
         // 2. Database Update
-        await supabaseClient.from('slides').update({ audio_url: null }).eq('id', slideId);
+        await supabaseClient.from('slides').update({
+            audio_url: null,
+            audio_description: null
+        }).eq('id', slideId);
 
         // 3. UI Update by Refreshing
         if (window.location.hash.startsWith('#admin/edit/')) {
@@ -1289,16 +1358,16 @@ async function renderAdminEditGallery(container, postId) {
                 ${(slides || []).map(slide => `
                     <div class="slide-group" data-slide-id="${slide.id}">
                         <div class="slide-card-wrapper item-wrapper" data-type="slide" data-id="${slide.id}">
-                            <div class="gallery-item" draggable="true" data-id="${slide.id}" data-image="${slide.image_url}" data-audio="${slide.audio_url || ''}" data-video="${slide.video_url || ''}" data-video-description="${slide.video_description || ''}">
+                            <div class="gallery-item" draggable="true" data-id="${slide.id}" data-image="${slide.image_url}" data-audio="${slide.audio_url || ''}" data-audio-description="${slide.audio_description || ''}" data-video="${slide.video_url || ''}" data-video-description="${slide.video_description || ''}">
                                 <img src="${slide.image_url}" loading="lazy">
                             </div>
                             <div class="slide-label">Slide ${slide.order_index + 1}</div>
                         </div>
                         ${slide.audio_url ? `
-                            <div class="asset-card-wrapper item-wrapper" data-type="asset" data-asset-type="audio" data-url="${slide.audio_url}">
+                            <div class="asset-card-wrapper item-wrapper" data-type="asset" data-asset-type="audio" data-url="${slide.audio_url}" data-description="${slide.audio_description || ''}">
                                 <div class="gallery-item asset-card type-asset" draggable="true">
                                     <span class="asset-icon">🔊</span>
-                                    <span class="asset-title">Audio Segment</span>
+                                    <span class="asset-title">${slide.audio_description || 'Audio Segment'}</span>
                                     <span class="asset-type-label">Audio</span>
                                 </div>
                                 <div class="slide-label">Attached Asset</div>
@@ -1391,6 +1460,7 @@ function initDragAndDrop(postId) {
                 id: item.dataset.id,
                 image_url: item.dataset.image,
                 audio_url: item.dataset.audio || null,
+                audio_description: item.dataset.audioDescription || null,
                 video_url: item.dataset.video || null,
                 video_description: item.dataset.videoDescription || null
             };
@@ -1428,6 +1498,7 @@ async function updateSlideOrder(postId) {
             currentSlide = {
                 id: wrapper.dataset.id,
                 audio_url: null,
+                audio_description: null,
                 video_url: null,
                 video_description: null
             };
@@ -1435,6 +1506,7 @@ async function updateSlideOrder(postId) {
         } else if (currentSlide) {
             if (wrapper.dataset.assetType === 'audio') {
                 currentSlide.audio_url = wrapper.dataset.url;
+                currentSlide.audio_description = wrapper.dataset.description;
             } else if (wrapper.dataset.assetType === 'video') {
                 currentSlide.video_url = wrapper.dataset.url;
                 currentSlide.video_description = wrapper.dataset.desc;
@@ -1447,6 +1519,7 @@ async function updateSlideOrder(postId) {
         id: slide.id,
         order_index: index,
         audio_url: slide.audio_url,
+        audio_description: slide.audio_description,
         video_url: slide.video_url,
         video_description: slide.video_description
     }));
@@ -1455,6 +1528,7 @@ async function updateSlideOrder(postId) {
         await supabaseClient.from('slides').update({
             order_index: update.order_index,
             audio_url: update.audio_url,
+            audio_description: update.audio_description,
             video_url: update.video_url,
             video_description: update.video_description
         }).eq('id', update.id);
