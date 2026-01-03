@@ -6,7 +6,7 @@
  */
 
 // --- Constants & State ---
-const APP_VERSION = 'v1.0.027';
+const APP_VERSION = 'v1.0.028';
 const ADMIN_ROUTE_SECRET = 'admin-portal'; // Accessible via index.html#admin-portal
 
 let currentUser = null;
@@ -595,6 +595,7 @@ async function loadPostDetails(id) {
                             ${slide.audio_url ? `
                                 <div class="audio-wrapper">
                                     <audio controls src="${slide.audio_url}"></audio>
+                                     ${slide.audio_description ? `<div class="audio-description">${slide.audio_description}</div>` : ''}
                                 </div>
                             ` : ''}
                             ${slide.video_url ? `

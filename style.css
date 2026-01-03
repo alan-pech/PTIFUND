@@ -547,11 +547,13 @@ textarea {
     border-radius: 12px;
 }
 
-.video-description {
+.video-description,
+.audio-description {
     margin-top: 1rem;
     font-size: 0.95rem;
     color: #475569;
     font-style: italic;
+    font-weight: 500;
 }
 
 .video-player {
