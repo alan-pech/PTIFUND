@@ -6,7 +6,7 @@
  */
 
 // --- Constants & State ---
-const APP_VERSION = 'v1.0.024';
+const APP_VERSION = 'v1.0.025';
 const ADMIN_ROUTE_SECRET = 'admin-portal'; // Accessible via index.html#admin-portal
 
 let currentUser = null;
@@ -947,8 +947,7 @@ async function uploadAudio(slideId, blob, title) {
     const { error: dbErr } = await supabaseClient
         .from('slides')
         .update({
-            audio_url: publicUrl,
-            audio_title: title
+            audio_url: publicUrl
         })
         .eq('id', slideId);
 
@@ -974,12 +973,10 @@ async function deleteAudio(slideId, audioUrl) {
         // 2. Database Update
         await supabaseClient.from('slides').update({ audio_url: null }).eq('id', slideId);
 
-        // 3. Immediate UI Update
-        const item = document.querySelector(`.gallery-item[data-id="${slideId}"]`);
-        if (item) {
-            item.dataset.audio = '';
-            const icon = item.querySelector('.audio-badge');
-            if (icon) icon.remove();
+        // 3. UI Update by Refreshing
+        if (window.location.hash.startsWith('#admin/edit/')) {
+            const postId = window.location.hash.split('/')[2];
+            renderAdminEditGallery(document.getElementById('edit-view-content'), postId);
         }
 
         showToast('Audio deleted successfully.', 'success');
@@ -1298,10 +1295,10 @@ async function renderAdminEditGallery(container, postId) {
                             <div class="slide-label">Slide ${slide.order_index + 1}</div>
                         </div>
                         ${slide.audio_url ? `
-                            <div class="asset-card-wrapper item-wrapper" data-type="asset" data-asset-type="audio" data-url="${slide.audio_url}" data-title="${slide.audio_title || 'Audio Recording'}">
+                            <div class="asset-card-wrapper item-wrapper" data-type="asset" data-asset-type="audio" data-url="${slide.audio_url}">
                                 <div class="gallery-item asset-card type-asset" draggable="true">
                                     <span class="asset-icon">🔊</span>
-                                    <span class="asset-title">${slide.audio_title || 'Audio Recording'}</span>
+                                    <span class="asset-title">Audio Segment</span>
                                     <span class="asset-type-label">Audio</span>
                                 </div>
                                 <div class="slide-label">Attached Asset</div>
@@ -1431,7 +1428,6 @@ async function updateSlideOrder(postId) {
             currentSlide = {
                 id: wrapper.dataset.id,
                 audio_url: null,
-                audio_title: null,
                 video_url: null,
                 video_description: null
             };
@@ -1439,7 +1435,6 @@ async function updateSlideOrder(postId) {
         } else if (currentSlide) {
             if (wrapper.dataset.assetType === 'audio') {
                 currentSlide.audio_url = wrapper.dataset.url;
-                currentSlide.audio_title = wrapper.dataset.title;
             } else if (wrapper.dataset.assetType === 'video') {
                 currentSlide.video_url = wrapper.dataset.url;
                 currentSlide.video_description = wrapper.dataset.desc;
@@ -1452,7 +1447,6 @@ async function updateSlideOrder(postId) {
         id: slide.id,
         order_index: index,
         audio_url: slide.audio_url,
-        audio_title: slide.audio_title,
         video_url: slide.video_url,
         video_description: slide.video_description
     }));
@@ -1461,7 +1455,6 @@ async function updateSlideOrder(postId) {
         await supabaseClient.from('slides').update({
             order_index: update.order_index,
             audio_url: update.audio_url,
-            audio_title: update.audio_title,
             video_url: update.video_url,
             video_description: update.video_description
         }).eq('id', update.id);
@@ -1710,7 +1703,7 @@ async function deleteVideo(slideId, videoUrl) {
         // Refresh UI
         if (window.location.hash.startsWith('#admin/edit/')) {
             const postId = window.location.hash.split('/')[2];
-            renderAdminEditGallery(document.getElementById('admin-content'), postId);
+            renderAdminEditGallery(document.getElementById('edit-view-content'), postId);
         }
     } catch (err) {
         showToast('Failed to remove video: ' + err.message, 'error');
