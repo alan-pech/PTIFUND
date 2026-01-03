@@ -6,7 +6,7 @@
  */
 
 // --- Constants & State ---
-const APP_VERSION = 'v1.0.053';
+const APP_VERSION = 'v1.0.054';
 const ADMIN_ROUTE_SECRET = 'admin-portal'; // Accessible via index.html#admin-portal
 
 let currentUser = null;
@@ -1654,21 +1654,32 @@ function getDragAfterElement(container, x, y, dragType) {
     // Find the first element that comes AFTER the cursor in reading order
     return candidates.reduce((closest, child) => {
         const box = child.getBoundingClientRect();
+        const centerX = box.left + box.width / 2;
+        const centerY = box.top + box.height / 2;
 
-        // Check if cursor is above this element (cursor comes before in reading order)
-        if (y < box.top + box.height / 2) {
-            // Element is after cursor - it's a candidate
-            // Among candidates, pick the one closest to cursor
+        // Check if this element comes after the cursor in reading order
+        const isAfterVertically = y < centerY;
+        const isAfterHorizontally = x < centerX;
+        const isSameRow = Math.abs(y - centerY) < box.height / 2;
+
+        // Element is a candidate if:
+        // 1. Cursor is above it (different row), OR
+        // 2. Cursor is on same row but to the left of it
+        const isCandidate = isAfterVertically || (isSameRow && isAfterHorizontally);
+
+        if (isCandidate) {
             if (!closest.element) return { element: child, box };
 
             const closestBox = closest.box;
-            // Prefer elements on the same row (similar Y), then leftmost
-            if (Math.abs(box.top - closestBox.top) < 20) {
+            const closestCenterY = closestBox.top + closestBox.height / 2;
+
+            // Among candidates, prefer elements on the same row, then leftmost
+            if (Math.abs(centerY - closestCenterY) < 20) {
                 // Same row - pick leftmost
                 return box.left < closestBox.left ? { element: child, box } : closest;
             } else {
                 // Different rows - pick topmost
-                return box.top < closestBox.top ? { element: child, box } : closest;
+                return centerY < closestCenterY ? { element: child, box } : closest;
             }
         }
 
