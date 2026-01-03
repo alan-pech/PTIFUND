@@ -6,7 +6,7 @@
  */
 
 // --- Constants & State ---
-const APP_VERSION = 'v1.0.028';
+const APP_VERSION = 'v1.0.029';
 const ADMIN_ROUTE_SECRET = 'admin-portal'; // Accessible via index.html#admin-portal
 
 let currentUser = null;
@@ -979,6 +979,7 @@ async function saveAndUploadAudio() {
             const postId = window.location.hash.split('/')[2];
             renderAdminEditGallery(document.getElementById('edit-view-content'), postId);
         }
+        calculateStorageUsage(true);
     } catch (err) {
         showToast('Upload failed: ' + err.message, 'error');
     } finally {
@@ -1048,6 +1049,7 @@ async function deleteAudio(slideId, audioUrl) {
             const postId = window.location.hash.split('/')[2];
             renderAdminEditGallery(document.getElementById('edit-view-content'), postId);
         }
+        calculateStorageUsage(true);
 
         showToast('Audio deleted successfully.', 'success');
     } catch (err) {
@@ -1536,7 +1538,7 @@ async function updateSlideOrder(postId) {
     }
 
     // Refresh UI
-    renderAdminEditGallery(document.getElementById('admin-content'), postId);
+    renderAdminEditGallery(document.getElementById('edit-view-content'), postId);
 }
 
 async function uploadNewSlides(postId) {
@@ -1575,7 +1577,8 @@ async function uploadNewSlides(postId) {
 
         statusDiv.textContent = `✓ ${files.length} slide(s) uploaded successfully!`;
         setTimeout(() => {
-            renderAdminEditGallery(document.getElementById('admin-content'), postId);
+            renderAdminEditGallery(document.getElementById('edit-view-content'), postId);
+            calculateStorageUsage(true);
         }, 500);
     } catch (err) {
         console.error('Upload error:', err);
@@ -1743,8 +1746,9 @@ async function openVideoUploader(slide) {
             // Refresh current view to show changes
             if (window.location.hash.startsWith('#admin/edit/')) {
                 const postId = window.location.hash.split('/')[2];
-                renderAdminEditGallery(document.getElementById('admin-content'), postId);
+                renderAdminEditGallery(document.getElementById('edit-view-content'), postId);
             }
+            calculateStorageUsage(true);
         } catch (err) {
             showToast('Operation failed: ' + err.message, 'error');
         } finally {
@@ -1780,6 +1784,7 @@ async function deleteVideo(slideId, videoUrl) {
             const postId = window.location.hash.split('/')[2];
             renderAdminEditGallery(document.getElementById('edit-view-content'), postId);
         }
+        calculateStorageUsage(true);
     } catch (err) {
         showToast('Failed to remove video: ' + err.message, 'error');
     }
