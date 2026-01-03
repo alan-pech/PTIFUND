@@ -6,7 +6,7 @@
  */
 
 // --- Constants & State ---
-const APP_VERSION = 'v1.0.052';
+const APP_VERSION = 'v1.0.053';
 const ADMIN_ROUTE_SECRET = 'admin-portal'; // Accessible via index.html#admin-portal
 
 let currentUser = null;
@@ -1651,22 +1651,34 @@ function getDragAfterElement(container, x, y, dragType) {
     const selector = dragType === 'group' ? '.slide-group:not(.dragging)' : '.item-wrapper:not(.dragging)';
     const candidates = [...container.querySelectorAll(selector)];
 
+    // Find the first element that comes AFTER the cursor in reading order
     return candidates.reduce((closest, child) => {
         const box = child.getBoundingClientRect();
-        const centerX = box.left + box.width / 2;
-        const centerY = box.top + box.height / 2;
-        const offset = Math.sqrt(Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2));
 
-        if (offset < closest.offset) {
-            return { offset: offset, element: child };
-        } else {
-            return closest;
+        // Check if cursor is above this element (cursor comes before in reading order)
+        if (y < box.top + box.height / 2) {
+            // Element is after cursor - it's a candidate
+            // Among candidates, pick the one closest to cursor
+            if (!closest.element) return { element: child, box };
+
+            const closestBox = closest.box;
+            // Prefer elements on the same row (similar Y), then leftmost
+            if (Math.abs(box.top - closestBox.top) < 20) {
+                // Same row - pick leftmost
+                return box.left < closestBox.left ? { element: child, box } : closest;
+            } else {
+                // Different rows - pick topmost
+                return box.top < closestBox.top ? { element: child, box } : closest;
+            }
         }
-    }, { offset: Number.POSITIVE_INFINITY }).element;
+
+        return closest;
+    }, { element: null, box: null }).element;
 }
 
 async function updateSlideOrder(postId) {
-    const allWrappers = [...document.querySelectorAll('.item-wrapper')];
+    const gallery = document.getElementById('gallery-container');
+    const allWrappers = [...gallery.querySelectorAll('.item-wrapper')];
     console.log('[Gallery] Recalculating order and assignments for ' + allWrappers.length + ' items...');
 
     const slides = [];
