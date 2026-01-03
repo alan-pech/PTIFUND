@@ -69,47 +69,42 @@
 
         <section id="admin-dashboard-view" class="view hidden">
             <div class="admin-layout">
-                <aside class="admin-sidebar">
-                    <div class="sidebar-brand">
-                        <h3>Admin</h3>
-                    </div>
-                    <nav class="sidebar-nav">
-                        <button id="btn-sidebar-new-post" class="sidebar-btn primary-action">
-                            <span class="nav-icon">✨</span>
-                            <span class="nav-label">New Post</span>
-                        </button>
-                        <a href="#admin/posts" class="nav-item" data-route="posts">
-                            <span class="nav-icon">📝</span>
-                            <span class="nav-label">Posts</span>
-                        </a>
-                        <a href="#admin/subscribers" class="nav-item" data-route="subscribers">
-                            <span class="nav-icon">👥</span>
-                            <span class="nav-label">Supporters</span>
-                        </a>
-                        <a href="#admin/comments" class="nav-item" data-route="comments">
-                            <span class="nav-icon">💬</span>
-                            <span class="nav-label">Moderation</span>
-                        </a>
-                        <div style="flex: 1;"></div>
-                        <button id="btn-logout" class="logout-btn">
-                            <span class="nav-icon">🚪</span>
-                            <span class="nav-label">Logout</span>
-                        </button>
-                    </nav>
-                    <div class="sidebar-footer">
-                        <div id="storage-usage-sidebar" class="storage-usage-sidebar">
-                            <div class="storage-info">
-                                <span class="storage-label">Storage:</span>
-                                <span id="storage-value">---</span>
-                            </div>
-                            <button id="btn-refresh-storage" class="btn-refresh" title="Refresh usage">🔄</button>
+                <nav class="admin-navbar">
+                    <div class="navbar-content">
+                        <div class="navbar-brand">
+                            <h3>Admin Panel</h3>
                         </div>
-                        <div class="app-version">v1.0.017</div>
+                        <button id="btn-hamburger" class="hamburger-btn" aria-label="Menu">
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                        </button>
+                        <div class="navbar-menu" id="admin-navbar-menu">
+                            <button id="btn-nav-new-post" class="navbar-btn primary-nav-btn">
+                                <span class="nav-icon">✨</span> New Post
+                            </button>
+                            <a href="#admin/posts" class="navbar-item" data-route="posts">
+                                <span class="nav-icon">📝</span> Posts
+                            </a>
+                            <a href="#admin/comments" class="navbar-item" data-route="comments">
+                                <span class="nav-icon">💬</span> Moderation
+                            </a>
+                        </div>
                     </div>
-                </aside>
+                </nav>
                 <main id="admin-content" class="admin-main">
                     <!-- Admin subsections -->
                 </main>
+                <footer class="admin-footer">
+                    <div id="storage-usage-container" class="storage-usage-footer">
+                        <div class="storage-info">
+                            <span class="storage-label">Storage Usage:</span>
+                            <span id="storage-value">---</span>
+                        </div>
+                        <button id="btn-refresh-storage" class="btn-refresh" title="Refresh usage">🔄</button>
+                    </div>
+                    <div class="app-version">v1.0.018</div>
+                </footer>
             </div>
         </section>
 

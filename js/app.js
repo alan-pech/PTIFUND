@@ -6,7 +6,7 @@
  */
 
 // --- Constants & State ---
-const APP_VERSION = 'v1.0.017';
+const APP_VERSION = 'v1.0.018';
 const ADMIN_ROUTE_SECRET = 'admin-portal'; // Accessible via index.html#admin-portal
 
 let currentUser = null;
@@ -211,6 +211,28 @@ function initAdminHooks() {
     if (btnRefresh) {
         btnRefresh.onclick = () => calculateStorageUsage(true);
     }
+
+    // New Navbar Hooks
+    const btnNewPost = document.getElementById('btn-nav-new-post');
+    if (btnNewPost) {
+        btnNewPost.onclick = () => {
+            const modal = document.getElementById('modal-new-post');
+            modal.classList.remove('hidden');
+        };
+    }
+
+    const btnHamburger = document.getElementById('btn-hamburger');
+    const navMenu = document.getElementById('admin-navbar-menu');
+    if (btnHamburger && navMenu) {
+        btnHamburger.onclick = () => {
+            navMenu.classList.toggle('active');
+        };
+        // Close menu on link click
+        navMenu.querySelectorAll('a').forEach(link => {
+            link.onclick = () => navMenu.classList.remove('active');
+        });
+    }
+
     initNewPostModal();
 }
 
@@ -360,8 +382,8 @@ function handleAdminRoutes(hash) {
     const subRoute = hash.split('/')[1];
     const adminContent = document.getElementById('admin-content');
 
-    // Update sidebar active state
-    document.querySelectorAll('.nav-item').forEach(item => {
+    // Update navbar active state
+    document.querySelectorAll('.navbar-item').forEach(item => {
         const route = item.getAttribute('data-route');
         if (route === subRoute) {
             item.classList.add('active');
@@ -369,15 +391,6 @@ function handleAdminRoutes(hash) {
             item.classList.remove('active');
         }
     });
-
-    // Bind logout
-    const logoutBtn = document.getElementById('btn-logout');
-    if (logoutBtn) {
-        logoutBtn.onclick = async () => {
-            await supabaseClient.auth.signOut();
-            window.location.hash = '#home';
-        };
-    }
 
     switch (subRoute) {
         case 'posts':
@@ -566,6 +579,11 @@ function scrollToSlide(index) {
 async function renderAdminPosts(container) {
     container.innerHTML = `
         <div class="card">
+            <div class="admin-posts-header">
+                <span>Post Title</span>
+                <span style="text-align: left;">Date</span>
+                <span style="text-align: right;">Actions</span>
+            </div>
             <div id="admin-posts-list" class="admin-list">
                 <div class="loader">Loading posts...</div>
             </div>
@@ -1137,15 +1155,10 @@ async function renderAdminComments(container) {
 
 async function loadAdminComments() {
     const queue = document.getElementById('comments-queue');
-    const { data: comments, error } = await supabaseClient
+    const { data: comments } = await supabaseClient
         .from('comments')
         .select('*, posts(title)')
         .eq('status', 'pending');
-
-    if (error) {
-        queue.innerHTML = `<p class="error">Error: ${error.message}</p>`;
-        return;
-    }
 
     if (comments.length === 0) {
         queue.innerHTML = '<div class="card"><p>No pending comments in the queue.</p></div>';
@@ -1225,11 +1238,10 @@ async function loadAdminPosts() {
 
     list.innerHTML = posts.map(post => `
         <div class="post-item-row">
-            <span class="post-title">${post.title}</span>
+            <span class="post-title" title="${post.title}">${post.title}</span>
             <span class="post-date">${new Date(post.created_at).toLocaleDateString()}</span>
             <div class="actions">
-                <button class="btn btn-text" onclick="window.location.hash='#admin/edit/${post.id}'">Edit Gallery</button>
-                <button class="btn btn-text" onclick="sendBroadcast('${post.id}')">Email</button>
+                <button class="btn btn-text" onclick="window.location.hash='#admin/edit/${post.id}'">Edit</button>
                 <button class="btn btn-text delete" onclick="deletePost('${post.id}')">Delete</button>
             </div>
         </div>
