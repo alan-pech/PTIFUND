@@ -6,7 +6,7 @@
  */
 
 // --- Constants & State ---
-const APP_VERSION = 'v1.0.032';
+const APP_VERSION = 'v1.0.034';
 const ADMIN_ROUTE_SECRET = 'admin-portal'; // Accessible via index.html#admin-portal
 
 let currentUser = null;
@@ -1160,7 +1160,7 @@ async function deleteSubscriber(id) {
     }
 }
 
-function showContextMenu(x, y, slide) {
+function showContextMenu(x, y, data) {
     // Remove existing menu
     const existing = document.getElementById('custom-context-menu');
     if (existing) existing.remove();
@@ -1171,40 +1171,57 @@ function showContextMenu(x, y, slide) {
     menu.style.top = `${y}px`;
     menu.style.left = `${x}px`;
 
-    const hasAudio = !!slide.audio_url && slide.audio_url !== '';
-    const hasVideo = !!slide.video_url && slide.video_url !== '';
+    if (data.type === 'asset') {
+        // Simplified menu for assets
+        menu.innerHTML = `
+            <div class="menu-item delete" id="menu-asset-delete">🗑️ Delete ${data.assetType === 'audio' ? 'Audio' : 'Video'}</div>
+        `;
+        document.body.appendChild(menu);
 
-    menu.innerHTML = `
-        <div class="menu-item" id="menu-record-action">
-            ${hasAudio ? '🗑️ Delete Recorded Audio' : '🎙️ Record Audio'}
-        </div>
-        <div class="menu-item" id="menu-video-action">
-            🎥 ${hasVideo ? 'Edit' : 'Add'} Video
-        </div>
-        <div class="menu-item delete" id="menu-delete-slide">🗑️ Delete Slide</div>
-    `;
+        document.getElementById('menu-asset-delete').onclick = () => {
+            if (data.assetType === 'audio') {
+                deleteAudio(data.slideId, data.url);
+            } else {
+                deleteVideo(data.slideId, data.url);
+            }
+            menu.remove();
+        };
+    } else {
+        // Full menu for slides
+        const hasAudio = !!data.audio_url && data.audio_url !== '';
+        const hasVideo = !!data.video_url && data.video_url !== '';
 
-    document.body.appendChild(menu);
+        menu.innerHTML = `
+            <div class="menu-item" id="menu-record-action">
+                ${hasAudio ? '🗑️ Delete Recorded Audio' : '🎙️ Record Audio'}
+            </div>
+            <div class="menu-item" id="menu-video-action">
+                🎥 ${hasVideo ? 'Edit' : 'Add'} Video
+            </div>
+            <div class="menu-item delete" id="menu-delete-slide">🗑️ Delete Slide</div>
+        `;
 
-    // Bind item events
-    document.getElementById('menu-record-action').onclick = () => {
-        if (hasAudio) {
-            deleteAudio(slide.id, slide.audio_url);
-        } else {
-            openAudioRecorder(slide.id);
-        }
-        menu.remove();
-    };
+        document.body.appendChild(menu);
 
-    document.getElementById('menu-video-action').onclick = () => {
-        openVideoUploader(slide);
-        menu.remove();
-    };
+        document.getElementById('menu-record-action').onclick = () => {
+            if (hasAudio) {
+                deleteAudio(data.id, data.audio_url);
+            } else {
+                openAudioRecorder(data.id);
+            }
+            menu.remove();
+        };
 
-    document.getElementById('menu-delete-slide').onclick = () => {
-        deleteSlide(slide.id);
-        menu.remove();
-    };
+        document.getElementById('menu-video-action').onclick = () => {
+            openVideoUploader(data);
+            menu.remove();
+        };
+
+        document.getElementById('menu-delete-slide').onclick = () => {
+            deleteSlide(data.id);
+            menu.remove();
+        };
+    }
 
     // Close on click elsewhere
     document.addEventListener('click', () => menu.remove(), { once: true });
@@ -1478,8 +1495,22 @@ function initDragAndDrop(postId) {
 
     // Event Delegation for Context Menu
     const handleContextMenu = (pageX, pageY, item) => {
-        if (item && !item.classList.contains('type-asset')) {
+        if (!item) return;
+
+        if (item.classList.contains('type-asset')) {
+            // Asset context menu
+            const wrapper = item.closest('.item-wrapper');
+            const assetData = {
+                type: 'asset',
+                assetType: wrapper.dataset.assetType,
+                url: wrapper.dataset.url,
+                slideId: item.closest('.slide-group').dataset.slideId
+            };
+            showContextMenu(pageX, pageY, assetData);
+        } else {
+            // Slide context menu
             const slide = {
+                type: 'slide',
                 id: item.dataset.id,
                 image_url: item.dataset.image,
                 audio_url: item.dataset.audio || null,
@@ -1493,7 +1524,7 @@ function initDragAndDrop(postId) {
 
     gallery.addEventListener('contextmenu', (e) => {
         const item = e.target.closest('.gallery-item');
-        if (item && !item.classList.contains('type-asset')) {
+        if (item) {
             e.preventDefault();
             handleContextMenu(e.pageX, e.pageY, item);
         }
@@ -1595,12 +1626,15 @@ async function uploadNewSlides(postId) {
             const filePath = `${postId}/slide_${nextIndex}_${Date.now()}.png`;
 
             const { PutObjectCommand } = await ensureS3SDK();
+            console.log('[R2] Uploading slide:', filePath);
+            const arrayBuffer = await file.arrayBuffer();
             await r2Client.send(new PutObjectCommand({
                 Bucket: R2_CONFIG.bucketName,
                 Key: filePath,
-                Body: file,
+                Body: new Uint8Array(arrayBuffer),
                 ContentType: file.type
             }));
+            console.log('[R2] Slide upload complete');
 
             const imageUrl = `${R2_CONFIG.publicUrl}/${filePath}`;
 
@@ -1753,14 +1787,17 @@ async function openVideoUploader(slide) {
             if (file) {
                 statusDiv.textContent = 'Uploading video to R2...';
                 const filePath = `video/${slide.id}_${Date.now()}_${file.name}`;
+                console.log('[R2] Uploading video:', filePath, 'Type:', file.type, 'Size:', file.size);
 
                 const { PutObjectCommand } = await ensureS3SDK();
+                const arrayBuffer = await file.arrayBuffer();
                 await r2Client.send(new PutObjectCommand({
                     Bucket: R2_CONFIG.bucketName,
                     Key: filePath,
-                    Body: file,
+                    Body: new Uint8Array(arrayBuffer),
                     ContentType: file.type
                 }));
+                console.log('[R2] Video upload complete');
 
                 videoUrl = `${R2_CONFIG.publicUrl}/${filePath}`;
             }
