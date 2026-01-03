@@ -6,7 +6,7 @@
  */
 
 // --- Constants & State ---
-const APP_VERSION = 'v1.0.065';
+const APP_VERSION = 'v1.0.066';
 const ADMIN_ROUTE_SECRET = 'admin-portal'; // Accessible via index.html#admin-portal
 
 let currentUser = null;
@@ -1549,13 +1549,18 @@ async function updatePostTitle(postId) {
 
 function initDragAndDrop(postId) {
     const gallery = document.getElementById('gallery-container');
-    if (!gallery) return;
+    if (!gallery) {
+        console.log('[DragDrop] Gallery container not found');
+        return;
+    }
 
     // Check if Sortable is available
     if (typeof Sortable === 'undefined') {
-        console.error('SortableJS library not loaded');
+        console.error('[DragDrop] SortableJS library not loaded');
         return;
     }
+
+    console.log('[DragDrop] Initializing SortableJS for gallery with', gallery.children.length, 'items');
 
     // Initialize SortableJS
     const sortable = Sortable.create(gallery, {
@@ -1565,11 +1570,19 @@ function initDragAndDrop(postId) {
         chosenClass: 'sortable-chosen',
         dragClass: 'sortable-drag',
         forceFallback: false,
+        onStart: function(evt) {
+            console.log('[DragDrop] Drag started', evt.oldIndex);
+        },
         onEnd: function(evt) {
+            console.log('[DragDrop] Drag ended. From:', evt.oldIndex, 'To:', evt.newIndex);
             // Update the order in the database after drag ends
-            updateSlideOrder(postId);
+            if (evt.oldIndex !== evt.newIndex) {
+                updateSlideOrder(postId);
+            }
         }
     });
+
+    console.log('[DragDrop] SortableJS initialized successfully');
 
     // Event Delegation for Context Menu
     const handleContextMenu = (pageX, pageY, item) => {
