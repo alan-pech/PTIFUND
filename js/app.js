@@ -6,7 +6,7 @@
  */
 
 // --- Constants & State ---
-const APP_VERSION = 'v1.0.073';
+const APP_VERSION = 'v1.0.074';
 const ADMIN_ROUTE_SECRET = 'admin-portal'; // Accessible via index.html#admin-portal
 
 let currentUser = null;
@@ -2168,7 +2168,22 @@ async function saveDocument() {
     }
 
     // Get HTML content from Quill
-    const htmlContent = quillInstance.root.innerHTML;
+    let htmlContent = quillInstance.root.innerHTML;
+
+    // Sanitize links: Ensure absolute URLs
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = htmlContent;
+    const links = tempDiv.getElementsByTagName('a');
+    for (let link of links) {
+        const href = link.getAttribute('href');
+        if (href && !href.match(/^https?:\/\/|^\/|^#|^mailto:|^tel:/i)) {
+            link.setAttribute('href', 'https://' + href);
+        }
+        // Force open in new tab
+        link.setAttribute('target', '_blank');
+        link.setAttribute('rel', 'noopener noreferrer');
+    }
+    htmlContent = tempDiv.innerHTML;
 
     // Check if content is empty (just <p><br></p> means empty)
     const isEmpty = htmlContent === '<p><br></p>' || htmlContent.trim() === '';

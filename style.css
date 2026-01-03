@@ -1714,6 +1714,17 @@ textarea {
     box-shadow: var(--shadow);
 }
 
+.post-document a {
+    color: var(--color-orange);
+    text-decoration: underline;
+    word-break: break-all;
+}
+
+.post-document a:hover {
+    text-decoration: none;
+    color: #e67e22;
+}
+
 .document-content {
     font-family: var(--font-body);
     font-size: 1rem;
