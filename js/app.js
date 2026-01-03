@@ -6,7 +6,7 @@
  */
 
 // --- Constants & State ---
-const APP_VERSION = 'v1.0.039';
+const APP_VERSION = 'v1.0.041';
 const ADMIN_ROUTE_SECRET = 'admin-portal'; // Accessible via index.html#admin-portal
 
 let currentUser = null;
@@ -537,6 +537,7 @@ async function loadLatestPost() {
             </aside>
             <article class="post-detail">
                 <div class="slides-stack">
+                    <div class="public-post-title">${post.title}</div>
                     ${slides.map((slide, index) => `
                         <div class="slide-card" data-slide-index="${index}">
                             <img src="${slide.image_url}" class="slide-image" loading="lazy">
@@ -616,6 +617,7 @@ async function loadPostDetails(id) {
             </aside>
             <article class="post-detail">
                 <div class="slides-stack">
+                    <div class="public-post-title">${post.title}</div>
                     ${slides.map((slide, index) => `
                         <div class="slide-card" data-slide-index="${index}">
                             <img src="${slide.image_url}" class="slide-image" loading="lazy">
@@ -659,17 +661,20 @@ async function loadPostDetails(id) {
 
 // Scroll to specific slide
 function scrollToSlide(index) {
-    const slideCard = document.querySelector(`.slide-card[data-slide-index="${index}"]`);
+    const activeView = document.querySelector('.view:not(.hidden)');
+    if (!activeView) return;
+
+    const slideCard = activeView.querySelector(`.slide-card[data-slide-index="${index}"]`);
     if (slideCard) {
         // Use scrollIntoView with smooth behavior. 
         // The offset is handled by scroll-margin-top in CSS.
         slideCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
         // Highlight active thumbnail
-        document.querySelectorAll('.thumbnail-item').forEach(item => {
+        activeView.querySelectorAll('.thumbnail-item').forEach(item => {
             item.classList.remove('active');
         });
-        const thumbnail = document.querySelector(`.thumbnail-item[data-slide-index="${index}"]`);
+        const thumbnail = activeView.querySelector(`.thumbnail-item[data-slide-index="${index}"]`);
         if (thumbnail) {
             thumbnail.classList.add('active');
         }

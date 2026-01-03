@@ -547,6 +547,18 @@ textarea {
     border-radius: 12px;
 }
 
+.public-post-title {
+    font-size: 0.9rem;
+    font-weight: 800;
+    margin-bottom: 1.25rem;
+    color: var(--color-dark);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    opacity: 0.8;
+    scroll-margin-top: 120px;
+    /* For scrollToSlide(0) visibility */
+}
+
 .asset-title {
     font-weight: bold;
     font-style: italic;
