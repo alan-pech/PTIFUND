@@ -6,7 +6,7 @@
  */
 
 // --- Constants & State ---
-const APP_VERSION = 'v1.0.043';
+const APP_VERSION = 'v1.0.044';
 const ADMIN_ROUTE_SECRET = 'admin-portal'; // Accessible via index.html#admin-portal
 
 let currentUser = null;
@@ -598,16 +598,21 @@ async function loadArchive() {
         return;
     }
 
-    // Fetch preview images (first slide of each post)
+    // Fetch preview images (first available slide of each post)
     const postIds = archivedPosts.map(p => p.id);
-    const { data: previews } = await supabaseClient
+    const { data: allSlides } = await supabaseClient
         .from('slides')
-        .select('post_id, image_url')
+        .select('post_id, image_url, order_index')
         .in('post_id', postIds)
-        .eq('order_index', 0);
+        .order('order_index', { ascending: true });
 
     const previewMap = {};
-    previews?.forEach(p => previewMap[p.post_id] = p.image_url);
+    allSlides?.forEach(s => {
+        // Only set if not already set, ensuring we keep the one with the lowest order_index
+        if (!previewMap[s.post_id]) {
+            previewMap[s.post_id] = s.image_url;
+        }
+    });
 
     grid.innerHTML = archivedPosts.map(post => {
         const dateStr = new Date(post.created_at).toLocaleDateString('en-GB', {
