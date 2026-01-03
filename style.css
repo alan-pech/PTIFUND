@@ -1276,10 +1276,8 @@ textarea {
 
 .slide-group {
     display: grid;
-    grid-template-columns: subgrid;
-    grid-column: 1 / -1;
-    gap: 1.5rem;
-    /* Allows children to flow into the parent grid while being draggable */
+    gap: 0.5rem;
+    /* Makes element draggable while allowing children to stack vertically */
 }
 
 .asset-card {
