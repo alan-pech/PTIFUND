@@ -6,7 +6,7 @@
  */
 
 // --- Constants & State ---
-const APP_VERSION = 'v1.0.054';
+const APP_VERSION = 'v1.0.055';
 const ADMIN_ROUTE_SECRET = 'admin-portal'; // Accessible via index.html#admin-portal
 
 let currentUser = null;
@@ -1651,40 +1651,28 @@ function getDragAfterElement(container, x, y, dragType) {
     const selector = dragType === 'group' ? '.slide-group:not(.dragging)' : '.item-wrapper:not(.dragging)';
     const candidates = [...container.querySelectorAll(selector)];
 
-    // Find the first element that comes AFTER the cursor in reading order
-    return candidates.reduce((closest, child) => {
+    // Iterate in DOM order - find the first element that comes AFTER cursor in reading order
+    for (const child of candidates) {
         const box = child.getBoundingClientRect();
-        const centerX = box.left + box.width / 2;
-        const centerY = box.top + box.height / 2;
 
-        // Check if this element comes after the cursor in reading order
-        const isAfterVertically = y < centerY;
-        const isAfterHorizontally = x < centerX;
-        const isSameRow = Math.abs(y - centerY) < box.height / 2;
+        // Cursor is above this element's row - element is after cursor
+        if (y < box.top) {
+            return child;
+        }
 
-        // Element is a candidate if:
-        // 1. Cursor is above it (different row), OR
-        // 2. Cursor is on same row but to the left of it
-        const isCandidate = isAfterVertically || (isSameRow && isAfterHorizontally);
-
-        if (isCandidate) {
-            if (!closest.element) return { element: child, box };
-
-            const closestBox = closest.box;
-            const closestCenterY = closestBox.top + closestBox.height / 2;
-
-            // Among candidates, prefer elements on the same row, then leftmost
-            if (Math.abs(centerY - closestCenterY) < 20) {
-                // Same row - pick leftmost
-                return box.left < closestBox.left ? { element: child, box } : closest;
-            } else {
-                // Different rows - pick topmost
-                return centerY < closestCenterY ? { element: child, box } : closest;
+        // Cursor is on the same row as this element
+        if (y >= box.top && y < box.bottom) {
+            // Cursor is to the left of element's center - element is after cursor
+            if (x < box.left + box.width / 2) {
+                return child;
             }
         }
 
-        return closest;
-    }, { element: null, box: null }).element;
+        // Cursor is below this row or to the right - continue to next element
+    }
+
+    // Cursor is after all elements - append at end
+    return null;
 }
 
 async function updateSlideOrder(postId) {
