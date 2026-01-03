@@ -6,7 +6,7 @@
  */
 
 // --- Constants & State ---
-const APP_VERSION = 'v1.0.021';
+const APP_VERSION = 'v1.0.022';
 const ADMIN_ROUTE_SECRET = 'admin-portal'; // Accessible via index.html#admin-portal
 
 let currentUser = null;
@@ -598,7 +598,7 @@ async function renderAdminPosts(container) {
 }
 
 function initNewPostModal() {
-    const btnNewPost = document.getElementById('btn-sidebar-new-post');
+    const btnNewPost = document.getElementById('btn-nav-new-post');
     const modal = document.getElementById('modal-new-post');
     const btnCancel = document.getElementById('btn-cancel-post');
     const btnSave = document.getElementById('btn-save-post');
