@@ -6,7 +6,7 @@
  */
 
 // --- Constants & State ---
-const APP_VERSION = 'v1.0.031';
+const APP_VERSION = 'v1.0.032';
 const ADMIN_ROUTE_SECRET = 'admin-portal'; // Accessible via index.html#admin-portal
 
 let currentUser = null;
@@ -543,20 +543,27 @@ async function loadLatestPost() {
                             ${slide.audio_url ? `
                                 <div class="audio-wrapper">
                                     <audio controls src="${slide.audio_url}"></audio>
+                                    ${slide.audio_description ? `<div class="audio-description">${slide.audio_description}</div>` : ''}
                                 </div>
                             ` : ''}
-                            ${slide.video_url ? `
-                                <div class="video-detail">
-                                    <video class="video-js vjs-big-play-centered vjs-theme-city" controls preload="auto" width="640" height="360">
-                                        <source src="${slide.video_url}" type="video/mp4">
-                                        <p class="vjs-no-js">
-                                            To view this video please enable JavaScript, and consider upgrading to a web browser that
-                                            <a href="https://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a>
-                                        </p>
-                                    </video>
-                                    ${slide.video_description ? `<div class="video-description">${slide.video_description}</div>` : ''}
-                                </div>
-                            ` : ''}
+                            ${slide.video_url ? (function () {
+            let type = 'video/mp4';
+            if (slide.video_url.toLowerCase().endsWith('.webm')) type = 'video/webm';
+            if (slide.video_url.toLowerCase().endsWith('.avi')) type = 'video/x-msvideo';
+
+            return `
+                                    <div class="video-detail">
+                                        <video class="video-js vjs-big-play-centered vjs-theme-city" controls preload="auto" width="640" height="360">
+                                            <source src="${slide.video_url}" type="${type}">
+                                            <p class="vjs-no-js">
+                                                To view this video please enable JavaScript, and consider upgrading to a web browser that
+                                                <a href="https://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a>
+                                            </p>
+                                        </video>
+                                        ${slide.video_description ? `<div class="video-description">${slide.video_description}</div>` : ''}
+                                    </div>
+                                `;
+        })() : ''}
                         </div>
                     `).join('')}
                 </div>
