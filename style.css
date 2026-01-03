@@ -1478,3 +1478,53 @@ textarea {
         padding: 1.25rem 1.5rem;
     }
 }
+/* Storage Maintenance Styles */
+.btn-refresh, .btn-purge {
+    background: white;
+    border: 1px solid #edf2f7;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 1rem;
+}
+
+.btn-refresh:hover {
+    background: #f1f5f9;
+}
+
+.btn-refresh.spinning {
+    animation: rotate 1s linear infinite;
+}
+
+.btn-purge {
+    border-radius: 20px;
+    width: auto;
+    padding: 0 1rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #e11d48;
+    background: #fff1f2;
+    border-color: #fecdd3;
+    gap: 0.4rem;
+}
+
+.btn-purge:hover {
+    background: #ffe4e6;
+    border-color: #fb7185;
+}
+
+.btn-purge.processing {
+    opacity: 0.7;
+    pointer-events: none;
+    cursor: wait;
+}
+
+@keyframes rotate {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}

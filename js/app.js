@@ -6,7 +6,7 @@
  */
 
 // --- Constants & State ---
-const APP_VERSION = 'v1.0.048';
+const APP_VERSION = 'v1.0.049';
 const ADMIN_ROUTE_SECRET = 'admin-portal'; // Accessible via index.html#admin-portal
 
 let currentUser = null;
@@ -1304,21 +1304,35 @@ async function deleteSlide(slideId) {
     if (!(await showConfirm('Are you sure you want to delete this slide?'))) return;
 
     try {
+        // 1. Fetch slide to get file paths
+        const { data: slide } = await supabaseClient.from('slides').select('*').eq('id', slideId).single();
+
+        if (slide) {
+            const { DeleteObjectsCommand } = await ensureS3SDK();
+            const keysToDelete = [];
+            if (slide.image_url) keysToDelete.push(slide.image_url.split(`${R2_CONFIG.publicUrl}/`).pop());
+            if (slide.audio_url) keysToDelete.push(slide.audio_url.split(`${R2_CONFIG.publicUrl}/`).pop());
+            if (slide.video_url) keysToDelete.push(slide.video_url.split(`${R2_CONFIG.publicUrl}/`).pop());
+
+            if (keysToDelete.length > 0) {
+                console.log('[R2] Cleaning up files for slide:', slideId);
+                await r2Client.send(new DeleteObjectsCommand({
+                    Bucket: R2_CONFIG.bucketName,
+                    Delete: { Objects: keysToDelete.map(Key => ({ Key })) }
+                }));
+            }
+        }
+
+        // 2. Delete Slide from DB
         const { error } = await supabaseClient.from('slides').delete().eq('id', slideId);
         if (error) throw error;
 
         // Immediate UI Update
-        const item = document.querySelector(`.gallery-item[data-id="${slideId}"]`);
+        const item = document.querySelector(`.slide-group[data-slide-id="${slideId}"]`);
         if (item) item.remove();
 
-        // Re-number badges
-        const items = [...document.querySelectorAll('.gallery-item')];
-        items.forEach((item, index) => {
-            const badge = item.querySelector('.slide-badge');
-            if (badge) badge.textContent = index + 1;
-        });
-
-        console.log('[Gallery] Slide deleted and UI updated.');
+        showToast('Slide deleted successfully.', 'success');
+        calculateStorageUsage(true);
     } catch (err) {
         showToast('Failed to delete slide: ' + err.message, 'error');
     }
@@ -1793,13 +1807,44 @@ async function sendBroadcast(postId) {
 
 // --- Cleanup & Maintenance ---
 async function deletePost(id) {
-    if (!(await showConfirm('Are you sure you want to delete this post? This will remove all slides and audio from storage.'))) return;
+    if (!(await showConfirm('Are you sure you want to delete this post? This will remove all slides, audio, and video from storage.'))) return;
 
-    const { error } = await supabaseClient.from('posts').delete().eq('id', id);
+    try {
+        // 1. Fetch all slides to get file paths
+        const { data: slides } = await supabaseClient.from('slides').select('*').eq('post_id', id);
 
+        if (slides && slides.length > 0) {
+            const { DeleteObjectsCommand } = await ensureS3SDK();
 
-    if (error) showToast('Error: ' + error.message, 'error');
-    else loadAdminPosts();
+            // Collect all unique keys that need deleting
+            const keysToDelete = [];
+            slides.forEach(slide => {
+                if (slide.image_url) keysToDelete.push(slide.image_url.split(`${R2_CONFIG.publicUrl}/`).pop());
+                if (slide.audio_url) keysToDelete.push(slide.audio_url.split(`${R2_CONFIG.publicUrl}/`).pop());
+                if (slide.video_url) keysToDelete.push(slide.video_url.split(`${R2_CONFIG.publicUrl}/`).pop());
+            });
+
+            // Delete in batches if necessary (AWS SDK DeleteObjects supports up to 1000)
+            if (keysToDelete.length > 0) {
+                console.log('[R2] Cleaning up files for post:', id, keysToDelete);
+                await r2Client.send(new DeleteObjectsCommand({
+                    Bucket: R2_CONFIG.bucketName,
+                    Delete: { Objects: [...new Set(keysToDelete)].map(Key => ({ Key })) }
+                }));
+            }
+        }
+
+        // 2. Delete Post (will cascade to slides in DB)
+        const { error } = await supabaseClient.from('posts').delete().eq('id', id);
+        if (error) throw error;
+
+        showToast('Post and all associated files deleted successfully.', 'success');
+        loadAdminPosts();
+        calculateStorageUsage(true);
+    } catch (err) {
+        console.error('Delete error:', err);
+        showToast('Failed to delete post: ' + err.message, 'error');
+    }
 }
 
 // --- Post Management ---
@@ -2016,11 +2061,88 @@ async function convertPDFToImages(pdfFile) {
     return slides;
 }
 
+async function purgeOrphanedFiles() {
+    if (!currentUser) return;
+    if (!(await showConfirm('This will permanently delete ALL files in storage that aren\'t currently linked to a post. This cannot be undone. Root you like to proceed?', 'Storage Deep Purge'))) return;
+
+    const btn = document.getElementById('btn-purge-storage');
+    if (btn) {
+        btn.classList.add('processing');
+        btn.textContent = '⌛ Purging...';
+    }
+
+    try {
+        // 1. Fetch all slide data from DB
+        const { data: slides } = await supabaseClient.from('slides').select('image_url, audio_url, video_url');
+
+        // 2. Build a Set of all "Active Keys"
+        const activeKeys = new Set();
+        (slides || []).forEach(s => {
+            if (s.image_url) activeKeys.add(s.image_url.split(`${R2_CONFIG.publicUrl}/`).pop());
+            if (s.audio_url) activeKeys.add(s.audio_url.split(`${R2_CONFIG.publicUrl}/`).pop());
+            if (s.video_url) activeKeys.add(s.video_url.split(`${R2_CONFIG.publicUrl}/`).pop());
+        });
+
+        // 3. List all files in R2
+        const { ListObjectsV2Command, DeleteObjectsCommand } = await ensureS3SDK();
+        let continuationToken = null;
+        let orphansCount = 0;
+        let purgedSize = 0;
+
+        do {
+            const listCommand = new ListObjectsV2Command({
+                Bucket: R2_CONFIG.bucketName,
+                ContinuationToken: continuationToken
+            });
+
+            const listResponse = await r2Client.send(listCommand);
+
+            if (listResponse.Contents) {
+                const keysToDelete = listResponse.Contents
+                    .filter(obj => !activeKeys.has(obj.Key))
+                    .map(obj => {
+                        orphansCount++;
+                        purgedSize += obj.Size || 0;
+                        return { Key: obj.Key };
+                    });
+
+                if (keysToDelete.length > 0) {
+                    await r2Client.send(new DeleteObjectsCommand({
+                        Bucket: R2_CONFIG.bucketName,
+                        Delete: { Objects: keysToDelete }
+                    }));
+                }
+            }
+
+            continuationToken = listResponse.NextContinuationToken;
+        } while (continuationToken);
+
+        const purgedSizeMB = (purgedSize / (1024 * 1024)).toFixed(2);
+        showToast(`Deep Purge complete! Removed ${orphansCount} orphaned files (${purgedSizeMB} MB).`, 'success');
+        calculateStorageUsage(true);
+
+    } catch (err) {
+        console.error('[Purge] Failed:', err);
+        showToast('Purge failed: ' + err.message, 'error');
+    } finally {
+        if (btn) {
+            btn.classList.remove('processing');
+            btn.textContent = '🗑️ Purge';
+        }
+    }
+}
+
 // --- Global Exposure for Module Functions ---
 // These are attached to window because they are used in inline onclick/onchange HTML attributes
 window.scrollToSlide = scrollToSlide;
 window.deleteSubscriber = deleteSubscriber;
 window.moderateComment = moderateComment;
 window.deletePost = deletePost;
+window.deleteSlide = deleteSlide;
 window.updatePostTitle = updatePostTitle;
 window.uploadNewSlides = uploadNewSlides;
+window.openVideoUploader = openVideoUploader;
+window.deleteVideo = deleteVideo;
+window.purgeOrphanedFiles = purgeOrphanedFiles;
+window.openAudioRecorder = openAudioRecorder;
+window.deleteAudio = deleteAudio;
