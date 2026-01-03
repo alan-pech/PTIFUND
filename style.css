@@ -1528,3 +1528,17 @@ textarea {
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
 }
+
+/* Drag and Drop Visual Feedback */
+.dragging {
+    opacity: 0.4;
+    transform: scale(0.95);
+    background: #fff7ed !important;
+    border: 2px dashed var(--color-orange) !important;
+    z-index: 1000;
+}
+
+.slide-group.dragging {
+    border-radius: 12px;
+    padding: 0.5rem;
+}

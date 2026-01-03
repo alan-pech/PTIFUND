@@ -6,7 +6,7 @@
  */
 
 // --- Constants & State ---
-const APP_VERSION = 'v1.0.050';
+const APP_VERSION = 'v1.0.052';
 const ADMIN_ROUTE_SECRET = 'admin-portal'; // Accessible via index.html#admin-portal
 
 let currentUser = null;
@@ -1550,7 +1550,7 @@ async function updatePostTitle(postId) {
 function initDragAndDrop(postId) {
     const gallery = document.getElementById('gallery-container');
     let draggedElement = null;
-    let isGroupDrag = false;
+    let dragType = null; // 'group' or 'asset'
 
     gallery.addEventListener('dragstart', (e) => {
         const itemWrapper = e.target.closest('.item-wrapper');
@@ -1558,14 +1558,16 @@ function initDragAndDrop(postId) {
 
         if (itemWrapper.dataset.type === 'slide') {
             draggedElement = itemWrapper.closest('.slide-group');
-            isGroupDrag = true;
+            dragType = 'group';
         } else {
             draggedElement = itemWrapper;
-            isGroupDrag = false;
+            dragType = 'asset';
         }
 
         if (draggedElement) {
             draggedElement.classList.add('dragging');
+            // Ensure dataTransfer works
+            e.dataTransfer.effectAllowed = 'move';
         }
     });
 
@@ -1574,17 +1576,20 @@ function initDragAndDrop(postId) {
         draggedElement.classList.remove('dragging');
         updateSlideOrder(postId);
         draggedElement = null;
+        dragType = null;
     });
 
     gallery.addEventListener('dragover', (e) => {
         e.preventDefault();
         if (!draggedElement) return;
 
-        const afterElement = getDragAfterElement(gallery, e.clientX, e.clientY);
+        const container = dragType === 'group' ? gallery : e.target.closest('.slide-group') || gallery;
+        const afterElement = getDragAfterElement(container, e.clientX, e.clientY, dragType);
+
         if (afterElement == null) {
-            gallery.appendChild(draggedElement);
+            container.appendChild(draggedElement);
         } else {
-            gallery.insertBefore(draggedElement, afterElement);
+            container.insertBefore(draggedElement, afterElement);
         }
     });
 
@@ -1642,10 +1647,11 @@ function initDragAndDrop(postId) {
     });
 }
 
-function getDragAfterElement(container, x, y) {
-    const draggableWrappers = [...container.querySelectorAll('.item-wrapper:not(.dragging)')];
+function getDragAfterElement(container, x, y, dragType) {
+    const selector = dragType === 'group' ? '.slide-group:not(.dragging)' : '.item-wrapper:not(.dragging)';
+    const candidates = [...container.querySelectorAll(selector)];
 
-    return draggableWrappers.reduce((closest, child) => {
+    return candidates.reduce((closest, child) => {
         const box = child.getBoundingClientRect();
         const centerX = box.left + box.width / 2;
         const centerY = box.top + box.height / 2;
