@@ -6,7 +6,7 @@
  */
 
 // --- Constants & State ---
-const APP_VERSION = 'v1.0.059';
+const APP_VERSION = 'v1.0.060';
 const ADMIN_ROUTE_SECRET = 'admin-portal'; // Accessible via index.html#admin-portal
 
 let currentUser = null;
@@ -1488,8 +1488,8 @@ async function renderAdminEditGallery(container, postId) {
             <div id="gallery-container" class="slides-grid full-width-gallery">
                 ${(slides || []).map(slide => `
                     <div class="slide-group" data-slide-id="${slide.id}">
-                        <div class="slide-card-wrapper item-wrapper" data-type="slide" data-id="${slide.id}">
-                            <div class="gallery-item" draggable="true" data-id="${slide.id}" data-image="${slide.image_url}" data-audio="${slide.audio_url || ''}" data-audio-description="${slide.audio_description || ''}" data-video="${slide.video_url || ''}" data-video-description="${slide.video_description || ''}">
+                        <div class="slide-card-wrapper item-wrapper" data-type="slide" data-id="${slide.id}" draggable="true">
+                            <div class="gallery-item" data-id="${slide.id}" data-image="${slide.image_url}" data-audio="${slide.audio_url || ''}" data-audio-description="${slide.audio_description || ''}" data-video="${slide.video_url || ''}" data-video-description="${slide.video_description || ''}">
                                 <img src="${slide.image_url}" loading="lazy">
                             </div>
                             <div class="slide-label">Slide ${slide.order_index + 1}</div>
