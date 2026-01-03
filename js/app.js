@@ -6,7 +6,7 @@
  */
 
 // --- Constants & State ---
-const APP_VERSION = 'v1.0.058';
+const APP_VERSION = 'v1.0.059';
 const ADMIN_ROUTE_SECRET = 'admin-portal'; // Accessible via index.html#admin-portal
 
 let currentUser = null;
@@ -1586,10 +1586,19 @@ function initDragAndDrop(postId) {
         const container = dragType === 'group' ? gallery : e.target.closest('.slide-group') || gallery;
         const afterElement = getDragAfterElement(container, e.clientX, e.clientY, dragType);
 
-        if (afterElement == null) {
-            container.appendChild(draggedElement);
+        // Only move if the position has actually changed
+        const currentNext = draggedElement.nextElementSibling;
+        
+        if (afterElement === null) {
+            // Should be at the end
+            if (currentNext !== null) {
+                container.appendChild(draggedElement);
+            }
         } else {
-            container.insertBefore(draggedElement, afterElement);
+            // Should be before afterElement
+            if (afterElement !== currentNext) {
+                container.insertBefore(draggedElement, afterElement);
+            }
         }
     });
 
@@ -1659,18 +1668,19 @@ function getDragAfterElement(container, x, y, dragType) {
         const centerX = box.left + box.width / 2;
         const centerY = box.top + box.height / 2;
         
-        // If cursor is above this element's center vertically, this element comes after
-        if (y < centerY) {
-            return child;
-        }
-        
-        // If cursor is at same vertical level (same row), check horizontal
-        if (y >= box.top && y < box.bottom) {
-            // If cursor is left of this element's center, this element comes after
+        // Check if we're on the same row first
+        if (y >= box.top && y <= box.bottom) {
+            // Same row - check horizontal position
+            // If cursor is left of this element's center, insert before it
             if (x < centerX) {
                 return child;
             }
+            // Otherwise continue to next element in this row
+        } else if (y < centerY) {
+            // Cursor is above this element's center - insert before it
+            return child;
         }
+        // If y > bottom, continue to check next elements
     }
 
     // Cursor is after all elements - return null to append at end
