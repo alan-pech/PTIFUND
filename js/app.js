@@ -6,7 +6,7 @@
  */
 
 // --- Constants & State ---
-const APP_VERSION = 'v1.0.055';
+const APP_VERSION = 'v1.0.056';
 const ADMIN_ROUTE_SECRET = 'admin-portal'; // Accessible via index.html#admin-portal
 
 let currentUser = null;
@@ -1651,28 +1651,29 @@ function getDragAfterElement(container, x, y, dragType) {
     const selector = dragType === 'group' ? '.slide-group:not(.dragging)' : '.item-wrapper:not(.dragging)';
     const candidates = [...container.querySelectorAll(selector)];
 
-    // Iterate in DOM order - find the first element that comes AFTER cursor in reading order
+    // Find the element that should come after the cursor position
+    let closestElement = null;
+    let closestDistance = Number.POSITIVE_INFINITY;
+
     for (const child of candidates) {
         const box = child.getBoundingClientRect();
+        const centerX = box.left + box.width / 2;
+        const centerY = box.top + box.height / 2;
 
-        // Cursor is above this element's row - element is after cursor
-        if (y < box.top) {
-            return child;
+        // Calculate offset: negative means element is before cursor, positive means after
+        // For vertical (y), prioritize by row position
+        // For horizontal (x), use it as secondary sort within the same row
+        const offset = (centerY - y) * 1000 + (centerX - x);
+
+        // We want the closest element that comes AFTER the cursor
+        // (positive offset with smallest value)
+        if (offset > 0 && offset < closestDistance) {
+            closestDistance = offset;
+            closestElement = child;
         }
-
-        // Cursor is on the same row as this element
-        if (y >= box.top && y < box.bottom) {
-            // Cursor is to the left of element's center - element is after cursor
-            if (x < box.left + box.width / 2) {
-                return child;
-            }
-        }
-
-        // Cursor is below this row or to the right - continue to next element
     }
 
-    // Cursor is after all elements - append at end
-    return null;
+    return closestElement;
 }
 
 async function updateSlideOrder(postId) {
