@@ -6,7 +6,7 @@
  */
 
 // --- Constants & State ---
-const APP_VERSION = 'v1.0.060';
+const APP_VERSION = 'v1.0.061';
 const ADMIN_ROUTE_SECRET = 'admin-portal'; // Accessible via index.html#admin-portal
 
 let currentUser = null;
@@ -1660,29 +1660,54 @@ function getDragAfterElement(container, x, y, dragType) {
     const selector = dragType === 'group' ? '.slide-group:not(.dragging)' : '.item-wrapper:not(.dragging)';
     const candidates = [...container.querySelectorAll(selector)];
 
+    console.log('[DRAG DEBUG] getDragAfterElement called:', {
+        dragType,
+        candidatesCount: candidates.length,
+        cursorX: x,
+        cursorY: y
+    });
+
     // We return the element that should come AFTER the dragged element
     // So we insert BEFORE this returned element
     
-    for (const child of candidates) {
+    for (let i = 0; i < candidates.length; i++) {
+        const child = candidates[i];
         const box = child.getBoundingClientRect();
         const centerX = box.left + box.width / 2;
         const centerY = box.top + box.height / 2;
         
+        console.log(`[DRAG DEBUG] Checking candidate ${i}:`, {
+            element: child.querySelector('.slide-label')?.textContent,
+            boxTop: box.top,
+            boxBottom: box.bottom,
+            boxLeft: box.left,
+            boxRight: box.right,
+            centerX,
+            centerY,
+            cursorY: y,
+            cursorX: x
+        });
+        
         // Check if we're on the same row first
         if (y >= box.top && y <= box.bottom) {
+            console.log(`[DRAG DEBUG] Cursor is on same row as candidate ${i}`);
             // Same row - check horizontal position
             // If cursor is left of this element's center, insert before it
             if (x < centerX) {
+                console.log(`[DRAG DEBUG] Cursor is left of center, RETURNING candidate ${i}`);
                 return child;
             }
+            console.log(`[DRAG DEBUG] Cursor is right of center, continuing...`);
             // Otherwise continue to next element in this row
         } else if (y < centerY) {
+            console.log(`[DRAG DEBUG] Cursor is above center, RETURNING candidate ${i}`);
             // Cursor is above this element's center - insert before it
             return child;
         }
         // If y > bottom, continue to check next elements
     }
 
+    console.log('[DRAG DEBUG] No candidate found, returning NULL (append to end)');
     // Cursor is after all elements - return null to append at end
     return null;
 }
