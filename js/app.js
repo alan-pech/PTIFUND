@@ -6,7 +6,7 @@
  */
 
 // --- Constants & State ---
-const APP_VERSION = 'v1.0.023';
+const APP_VERSION = 'v1.0.024';
 const ADMIN_ROUTE_SECRET = 'admin-portal'; // Accessible via index.html#admin-portal
 
 let currentUser = null;
@@ -722,9 +722,11 @@ let audioRecorder = {
 async function openAudioRecorder(slideId) {
     audioRecorder.targetSlideId = slideId;
     const modal = document.getElementById('modal-audio-recorder');
+    const titleInput = document.getElementById('audio-record-title');
     modal.classList.remove('hidden');
 
     resetRecorderUI();
+    if (titleInput) titleInput.value = '';
 
     // Bind buttons
     document.getElementById('btn-start-record').onclick = startCapture;
@@ -881,6 +883,14 @@ async function saveAndUploadAudio() {
         return;
     }
 
+    const titleInput = document.getElementById('audio-record-title');
+    const title = titleInput ? titleInput.value.trim() : '';
+
+    if (!title) {
+        showToast('Please provide a title for the recording.', 'warning');
+        return;
+    }
+
     console.log('[Audio] Total chunks:', audioRecorder.chunks.length);
 
     // Use the appropriate mime type for the blob
@@ -893,22 +903,16 @@ async function saveAndUploadAudio() {
     btnSave.disabled = true;
 
     try {
-        const publicUrl = await uploadAudio(audioRecorder.targetSlideId, blob);
-
-        // Immediate UI Update
-        const item = document.querySelector(`.gallery-item[data-id="${audioRecorder.targetSlideId}"]`);
-        if (item) {
-            item.dataset.audio = publicUrl;
-            if (!item.querySelector('.audio-badge')) {
-                const icon = document.createElement('div');
-                icon.className = 'audio-badge';
-                icon.textContent = '♪';
-                item.appendChild(icon);
-            }
-        }
+        const publicUrl = await uploadAudio(audioRecorder.targetSlideId, blob, title);
 
         closeAudioRecorder();
         showToast('Audio tagged successfully!', 'success');
+
+        // Refresh UI to show the new asset card
+        if (window.location.hash.startsWith('#admin/edit/')) {
+            const postId = window.location.hash.split('/')[2];
+            renderAdminEditGallery(document.getElementById('edit-view-content'), postId);
+        }
     } catch (err) {
         showToast('Upload failed: ' + err.message, 'error');
     } finally {
@@ -917,7 +921,7 @@ async function saveAndUploadAudio() {
     }
 }
 
-async function uploadAudio(slideId, blob) {
+async function uploadAudio(slideId, blob, title) {
     // Determine file extension based on blob type
     let extension = 'webm';
     if (blob.type.includes('mp4')) {
@@ -942,7 +946,10 @@ async function uploadAudio(slideId, blob) {
 
     const { error: dbErr } = await supabaseClient
         .from('slides')
-        .update({ audio_url: publicUrl })
+        .update({
+            audio_url: publicUrl,
+            audio_title: title
+        })
         .eq('id', slideId);
 
     if (dbErr) throw dbErr;
@@ -1291,10 +1298,10 @@ async function renderAdminEditGallery(container, postId) {
                             <div class="slide-label">Slide ${slide.order_index + 1}</div>
                         </div>
                         ${slide.audio_url ? `
-                            <div class="asset-card-wrapper item-wrapper" data-type="asset" data-asset-type="audio" data-url="${slide.audio_url}">
+                            <div class="asset-card-wrapper item-wrapper" data-type="asset" data-asset-type="audio" data-url="${slide.audio_url}" data-title="${slide.audio_title || 'Audio Recording'}">
                                 <div class="gallery-item asset-card type-asset" draggable="true">
                                     <span class="asset-icon">🔊</span>
-                                    <span class="asset-title">Audio Recording</span>
+                                    <span class="asset-title">${slide.audio_title || 'Audio Recording'}</span>
                                     <span class="asset-type-label">Audio</span>
                                 </div>
                                 <div class="slide-label">Attached Asset</div>
@@ -1424,6 +1431,7 @@ async function updateSlideOrder(postId) {
             currentSlide = {
                 id: wrapper.dataset.id,
                 audio_url: null,
+                audio_title: null,
                 video_url: null,
                 video_description: null
             };
@@ -1431,6 +1439,7 @@ async function updateSlideOrder(postId) {
         } else if (currentSlide) {
             if (wrapper.dataset.assetType === 'audio') {
                 currentSlide.audio_url = wrapper.dataset.url;
+                currentSlide.audio_title = wrapper.dataset.title;
             } else if (wrapper.dataset.assetType === 'video') {
                 currentSlide.video_url = wrapper.dataset.url;
                 currentSlide.video_description = wrapper.dataset.desc;
@@ -1443,6 +1452,7 @@ async function updateSlideOrder(postId) {
         id: slide.id,
         order_index: index,
         audio_url: slide.audio_url,
+        audio_title: slide.audio_title,
         video_url: slide.video_url,
         video_description: slide.video_description
     }));
@@ -1451,6 +1461,7 @@ async function updateSlideOrder(postId) {
         await supabaseClient.from('slides').update({
             order_index: update.order_index,
             audio_url: update.audio_url,
+            audio_title: update.audio_title,
             video_url: update.video_url,
             video_description: update.video_description
         }).eq('id', update.id);
