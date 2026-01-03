@@ -100,7 +100,7 @@
                         </div>
                         <button id="btn-refresh-storage" class="btn-refresh" title="Refresh usage">🔄</button>
                     </div>
-                    <div class="app-version">v1.0.036</div>
+                    <div class="app-version">v1.0.038</div>
                 </footer>
             </div>
         </section>
@@ -185,12 +185,12 @@
                 <div class="upload-options" style="display: flex; gap: 1rem; margin: 1rem 0;">
                     <div class="upload-zone" id="upload-zone-folder" style="flex: 1;">
                         <p>📁 Select Folder</p>
-                        <input type="file" id="folder-input" webkitdirectory directory multiple accept=".png, image/png"
-                            hidden>
+                        <input type="file" id="folder-input" webkitdirectory directory multiple
+                            accept="image/png,application/pdf" hidden>
                     </div>
                     <div class="upload-zone" id="upload-zone-files" style="flex: 1;">
                         <p>🖼️ Select Files</p>
-                        <input type="file" id="files-input" multiple accept=".png, image/png" hidden>
+                        <input type="file" id="files-input" multiple accept="image/png,application/pdf" hidden>
                     </div>
                 </div>
 
@@ -205,7 +205,7 @@
     </main>
 
     <footer class="app-footer">
-        <div class="version">v1.0.036</div>
+        <div class="version">v1.0.038</div>
         <p>&copy; 2026 Project Timothy Fund Uganda</p>
     </footer>
 
@@ -244,7 +244,9 @@
     <script src="https://vjs.zencdn.net/8.10.0/video.min.js"></script>
     <!-- AWS SDK for JavaScript (S3 Client) is loaded dynamically in app.js -->
     <script src="js/config.js"></script>
-    <script src="js/app.js"></script>
+    <!-- PDF.js for PDF to Slide conversion -->
+    <script src="https://unpkg.com/pdfjs-dist@4.0.379/build/pdf.min.mjs" type="module"></script>
+    <script src="js/app.js" type="module"></script>
 </body>
 
 </html>

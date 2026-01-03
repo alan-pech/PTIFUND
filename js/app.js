@@ -6,7 +6,7 @@
  */
 
 // --- Constants & State ---
-const APP_VERSION = 'v1.0.036';
+const APP_VERSION = 'v1.0.038';
 const ADMIN_ROUTE_SECRET = 'admin-portal'; // Accessible via index.html#admin-portal
 
 let currentUser = null;
@@ -722,12 +722,29 @@ function initNewPostModal() {
     uploadZoneFolder.onclick = () => folderInput.click();
     uploadZoneFiles.onclick = () => filesInput.click();
 
-    const handleFileChange = (e) => {
-        const files = Array.from(e.target.files)
-            .filter(f => f.type === 'image/png' || f.name.toLowerCase().endsWith('.png'))
+    const handleFileChange = async (e) => {
+        const files = Array.from(e.target.files);
+
+        // Detect PDF
+        const pdfFile = files.find(f => f.type === 'application/pdf');
+        if (pdfFile) {
+            const preview = document.getElementById('upload-preview');
+            preview.innerHTML = '<div class="loader">Converting PDF to slides... This may take a moment.</div>';
+            try {
+                selectedFiles = await convertPDFToImages(pdfFile);
+                renderUploadPreview(selectedFiles);
+            } catch (err) {
+                showToast('Error converting PDF: ' + err.message, 'error');
+                preview.innerHTML = '';
+            }
+            return;
+        }
+
+        // Default PNG behavior
+        const pngFiles = files.filter(f => f.type === 'image/png' || f.name.toLowerCase().endsWith('.png'))
             .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
-        selectedFiles = files;
-        renderUploadPreview(files);
+        selectedFiles = pngFiles;
+        renderUploadPreview(pngFiles);
     };
 
     folderInput.onchange = handleFileChange;
@@ -738,7 +755,7 @@ function initNewPostModal() {
         const files = selectedFiles;
 
         if (!title || files.length === 0) {
-            showToast('Please provide a title and select a folder with PNGs.', 'warning');
+            showToast('Please provide a title and select a folder with PNGs or a PDF file.', 'warning');
             return;
         }
 
@@ -1433,8 +1450,8 @@ async function renderAdminEditGallery(container, postId) {
         <div class="card" style="margin-top: 2rem;">
             <h3>Add New Slides</h3>
             <div class="upload-zone" onclick="document.getElementById('slide-files').click()">
-                <input type="file" id="slide-files" multiple accept=".png, image/png" style="display: none;" onchange="uploadNewSlides('${post.id}')">
-                <p>📁 Click to choose PNG files or drag and drop here</p>
+                <input type="file" id="slide-files" multiple accept="image/png,application/pdf" style="display: none;" onchange="uploadNewSlides('${post.id}')">
+                <p>📁 Click to choose PNG/PDF files or drag and drop here</p>
             </div>
             <div id="upload-status" style="margin-top: 1rem; color: var(--color-orange); font-weight: 500;"></div>
         </div>
@@ -1448,8 +1465,14 @@ async function updatePostTitle(postId) {
     if (!newTitle.trim()) return showToast('Title cannot be empty', 'warning');
 
     const { error } = await supabaseClient.from('posts').update({ title: newTitle }).eq('id', postId);
-    if (!error) showToast('Title updated successfully!', 'success');
-    else showToast('Error updating title: ' + error.message, 'error');
+    if (!error) {
+        showToast('Title updated successfully!', 'success');
+        // Update the page heading immediately
+        const titleEl = document.getElementById('edit-view-title');
+        if (titleEl) titleEl.textContent = newTitle;
+    } else {
+        showToast('Error updating title: ' + error.message, 'error');
+    }
 }
 
 function initDragAndDrop(postId) {
@@ -1618,13 +1641,22 @@ async function updateSlideOrder(postId) {
 
 async function uploadNewSlides(postId) {
     const fileInput = document.getElementById('slide-files');
-    const files = fileInput.files;
+    let files = Array.from(fileInput.files);
     if (files.length === 0) return;
 
     const statusDiv = document.getElementById('upload-status');
-    statusDiv.textContent = `Uploading ${files.length} slide(s)...`;
+    statusDiv.textContent = `Processing files...`;
 
     try {
+        // Detect PDF
+        const pdfFile = files.find(f => f.type === 'application/pdf');
+        if (pdfFile) {
+            statusDiv.textContent = 'Converting PDF pages to slides...';
+            files = await convertPDFToImages(pdfFile);
+        }
+
+        statusDiv.textContent = `Uploading ${files.length} slide(s)...`;
+
         // Get current max order
         const { data: currentSlides } = await supabaseClient.from('slides').select('order_index').eq('post_id', postId).order('order_index', { ascending: false }).limit(1);
         let nextIndex = currentSlides.length > 0 ? currentSlides[0].order_index + 1 : 0;
@@ -1890,4 +1922,40 @@ function initVideoPlayers() {
             videoEl.classList.add('vjs-initialized');
         }
     });
+}
+
+// --- PDF Processing ---
+async function convertPDFToImages(pdfFile) {
+    console.log('[PDF] Starting conversion for:', pdfFile.name);
+
+    // Configure PDF.js Worker
+    const pdfjsLib = window['pdfjs-dist/build/pdf'];
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://unpkg.com/pdfjs-dist@4.0.379/build/pdf.worker.min.mjs';
+
+    const arrayBuffer = await pdfFile.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    const slides = [];
+
+    for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const viewport = page.getViewport({ scale: 2.0 }); // High quality 2x scale
+
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+
+        await page.render({ canvasContext: context, viewport }).promise;
+
+        // Convert to blob
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+
+        // Create a File object from blob to keep consistency with existing logic
+        const file = new File([blob], `page_${i}.png`, { type: 'image/png' });
+        slides.push(file);
+
+        console.log(`[PDF] Page ${i}/${pdf.numPages} converted.`);
+    }
+
+    return slides;
 }

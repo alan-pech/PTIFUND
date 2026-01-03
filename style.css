@@ -1250,4 +1250,18 @@ textarea {
         grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)) !important;
         gap: 1rem !important;
     }
+
+    .input-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .input-row .btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .edit-card {
+        padding: 1.5rem;
+    }
 }
