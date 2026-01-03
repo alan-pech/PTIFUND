@@ -1275,8 +1275,11 @@ textarea {
 }
 
 .slide-group {
-    display: contents;
-    /* Allows children to flow into the parent grid */
+    display: grid;
+    grid-template-columns: subgrid;
+    grid-column: 1 / -1;
+    gap: 1.5rem;
+    /* Allows children to flow into the parent grid while being draggable */
 }
 
 .asset-card {
@@ -1478,8 +1481,10 @@ textarea {
         padding: 1.25rem 1.5rem;
     }
 }
+
 /* Storage Maintenance Styles */
-.btn-refresh, .btn-purge {
+.btn-refresh,
+.btn-purge {
     background: white;
     border: 1px solid #edf2f7;
     border-radius: 50%;
@@ -1525,8 +1530,13 @@ textarea {
 }
 
 @keyframes rotate {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 /* Drag and Drop Visual Feedback */

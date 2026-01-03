@@ -6,7 +6,7 @@
  */
 
 // --- Constants & State ---
-const APP_VERSION = 'v1.0.066';
+const APP_VERSION = 'v1.0.067';
 const ADMIN_ROUTE_SECRET = 'admin-portal'; // Accessible via index.html#admin-portal
 
 let currentUser = null;
@@ -1570,10 +1570,10 @@ function initDragAndDrop(postId) {
         chosenClass: 'sortable-chosen',
         dragClass: 'sortable-drag',
         forceFallback: false,
-        onStart: function(evt) {
+        onStart: function (evt) {
             console.log('[DragDrop] Drag started', evt.oldIndex);
         },
-        onEnd: function(evt) {
+        onEnd: function (evt) {
             console.log('[DragDrop] Drag ended. From:', evt.oldIndex, 'To:', evt.newIndex);
             // Update the order in the database after drag ends
             if (evt.oldIndex !== evt.newIndex) {
