@@ -6,7 +6,7 @@
  */
 
 // --- Constants & State ---
-const APP_VERSION = 'v1.0.064';
+const APP_VERSION = 'v1.0.065';
 const ADMIN_ROUTE_SECRET = 'admin-portal'; // Accessible via index.html#admin-portal
 
 let currentUser = null;
@@ -1551,14 +1551,20 @@ function initDragAndDrop(postId) {
     const gallery = document.getElementById('gallery-container');
     if (!gallery) return;
 
+    // Check if Sortable is available
+    if (typeof Sortable === 'undefined') {
+        console.error('SortableJS library not loaded');
+        return;
+    }
+
     // Initialize SortableJS
     const sortable = Sortable.create(gallery, {
         animation: 150,
-        handle: '.gallery-item',
         draggable: '.slide-group',
         ghostClass: 'sortable-ghost',
         chosenClass: 'sortable-chosen',
         dragClass: 'sortable-drag',
+        forceFallback: false,
         onEnd: function(evt) {
             // Update the order in the database after drag ends
             updateSlideOrder(postId);
