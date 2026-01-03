@@ -6,7 +6,7 @@
  */
 
 // --- Constants & State ---
-const APP_VERSION = 'v1.0.044';
+const APP_VERSION = 'v1.0.047';
 const ADMIN_ROUTE_SECRET = 'admin-portal'; // Accessible via index.html#admin-portal
 
 let currentUser = null;
@@ -598,21 +598,31 @@ async function loadArchive() {
         return;
     }
 
-    // Fetch preview images (first available slide of each post)
+    // Fetch preview images (Optimized: try index 0 first, then fallback)
     const postIds = archivedPosts.map(p => p.id);
-    const { data: allSlides } = await supabaseClient
+    const { data: firstSlides } = await supabaseClient
         .from('slides')
-        .select('post_id, image_url, order_index')
+        .select('post_id, image_url')
         .in('post_id', postIds)
-        .order('order_index', { ascending: true });
+        .eq('order_index', 0);
 
     const previewMap = {};
-    allSlides?.forEach(s => {
-        // Only set if not already set, ensuring we keep the one with the lowest order_index
-        if (!previewMap[s.post_id]) {
-            previewMap[s.post_id] = s.image_url;
-        }
-    });
+    firstSlides?.forEach(s => previewMap[s.post_id] = s.image_url);
+
+    // Check for posts still missing previews
+    const missingPreviewIds = postIds.filter(id => !previewMap[id]);
+    if (missingPreviewIds.length > 0) {
+        console.log('[Archive] Missing index-0 previews for:', missingPreviewIds.length, 'posts. Fetching fallbacks...');
+        const { data: fallbackSlides } = await supabaseClient
+            .from('slides')
+            .select('post_id, image_url, order_index')
+            .in('post_id', missingPreviewIds)
+            .order('order_index', { ascending: true });
+
+        fallbackSlides?.forEach(s => {
+            if (!previewMap[s.post_id]) previewMap[s.post_id] = s.image_url;
+        });
+    }
 
     grid.innerHTML = archivedPosts.map(post => {
         const dateStr = new Date(post.created_at).toLocaleDateString('en-GB', {
@@ -1378,7 +1388,7 @@ async function loadComments(postId) {
 
     list.innerHTML = (comments || []).map(c => `
         <div class="user-comment">
-            <strong>${c.author_name}</strong>
+            <div class="comment-header">From ${c.author_name}</div>
             <p>${c.comment_text}</p>
         </div>
     `).join('');
