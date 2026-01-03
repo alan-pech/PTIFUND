@@ -6,7 +6,7 @@
  */
 
 // --- Constants & State ---
-const APP_VERSION = 'v1.0.042';
+const APP_VERSION = 'v1.0.043';
 const ADMIN_ROUTE_SECRET = 'admin-portal'; // Accessible via index.html#admin-portal
 
 let currentUser = null;
@@ -578,6 +578,8 @@ async function loadLatestPost() {
 
 async function loadArchive() {
     const grid = document.getElementById('archive-grid');
+    grid.innerHTML = '<div class="loader">Loading archive...</div>';
+
     const { data: posts, error } = await supabaseClient
         .from('posts')
         .select('*')
@@ -588,12 +590,45 @@ async function loadArchive() {
         return;
     }
 
-    grid.innerHTML = posts.map(post => `
-        <div class="archive-card" onclick="window.location.hash = '#post/${post.id}'">
-            <h4>${post.title}</h4>
-            <p>${new Date(post.created_at).toLocaleDateString()}</p>
-        </div>
-    `).join('');
+    // Skip the latest post (which is featured on home)
+    const archivedPosts = posts.slice(1);
+
+    if (archivedPosts.length === 0) {
+        grid.innerHTML = '<p>No previous updates found.</p>';
+        return;
+    }
+
+    // Fetch preview images (first slide of each post)
+    const postIds = archivedPosts.map(p => p.id);
+    const { data: previews } = await supabaseClient
+        .from('slides')
+        .select('post_id, image_url')
+        .in('post_id', postIds)
+        .eq('order_index', 0);
+
+    const previewMap = {};
+    previews?.forEach(p => previewMap[p.post_id] = p.image_url);
+
+    grid.innerHTML = archivedPosts.map(post => {
+        const dateStr = new Date(post.created_at).toLocaleDateString('en-GB', {
+            month: 'long',
+            year: 'numeric'
+        });
+        const imageUrl = previewMap[post.id] || '';
+
+        return `
+            <div class="archive-card" onclick="window.location.hash = '#post/${post.id}'">
+                <div class="archive-card-image">
+                    ${imageUrl ? `<img src="${imageUrl}" alt="${post.title}" loading="lazy">` : '<div class="no-preview">No Preview</div>'}
+                </div>
+                <div class="archive-card-content">
+                    <div class="archive-card-meta">${dateStr}</div>
+                    <h4 class="archive-card-title">${post.title}</h4>
+                    <span class="archive-card-link">Read Update →</span>
+                </div>
+            </div>
+        `;
+    }).join('');
 }
 
 async function loadPostDetails(id) {
