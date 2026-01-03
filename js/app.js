@@ -6,7 +6,7 @@
  */
 
 // --- Constants & State ---
-const APP_VERSION = 'v1.0.075';
+const APP_VERSION = 'v1.0.076';
 const ADMIN_ROUTE_SECRET = 'admin-portal'; // Accessible via index.html#admin-portal
 
 let currentUser = null;
@@ -2112,6 +2112,9 @@ async function openDocumentEditor(slideId) {
         const toolbar = document.getElementById('quill-toolbar');
         quillInstance = new Quill(editorContainer, {
             modules: {
+                imageResize: {
+                    displaySize: true
+                },
                 toolbar: {
                     container: toolbar,
                     handlers: {
