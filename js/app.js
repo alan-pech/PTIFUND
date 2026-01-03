@@ -6,7 +6,7 @@
  */
 
 // --- Constants & State ---
-const APP_VERSION = 'v1.0.018';
+const APP_VERSION = 'v1.0.019';
 const ADMIN_ROUTE_SECRET = 'admin-portal'; // Accessible via index.html#admin-portal
 
 let currentUser = null;
@@ -1257,10 +1257,6 @@ async function renderAdminEditGallery(container, postId) {
             <div class="header-left">
                 <button class="btn btn-text" onclick="window.location.hash='#admin/posts'">← Back</button>
                 <h1>Edit Post</h1>
-            </div>
-            <div class="toggle-group">
-                <button class="btn btn-primary active">Gallery</button>
-                <button class="btn" disabled>List</button>
             </div>
         </div>
 
