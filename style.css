@@ -547,13 +547,18 @@ textarea {
     border-radius: 12px;
 }
 
-.video-description,
-.audio-description {
-    margin-top: 1rem;
-    font-size: 0.95rem;
-    color: #475569;
+.asset-title {
+    font-weight: bold;
     font-style: italic;
-    font-weight: 500;
+    margin-bottom: 0.5rem;
+    display: block;
+    color: var(--color-dark);
+}
+
+.audio-description,
+.video-description {
+    display: none;
+    /* Deprecated in favor of .asset-title above media */
 }
 
 .video-player {

@@ -6,7 +6,7 @@
  */
 
 // --- Constants & State ---
-const APP_VERSION = 'v1.0.038';
+const APP_VERSION = 'v1.0.039';
 const ADMIN_ROUTE_SECRET = 'admin-portal'; // Accessible via index.html#admin-portal
 
 let currentUser = null;
@@ -542,8 +542,8 @@ async function loadLatestPost() {
                             <img src="${slide.image_url}" class="slide-image" loading="lazy">
                             ${slide.audio_url ? `
                                 <div class="audio-wrapper">
+                                    ${slide.audio_description ? `<div class="asset-title">${slide.audio_description}</div>` : ''}
                                     <audio controls src="${slide.audio_url}"></audio>
-                                    ${slide.audio_description ? `<div class="audio-description">${slide.audio_description}</div>` : ''}
                                 </div>
                             ` : ''}
                             ${slide.video_url ? (function () {
@@ -553,6 +553,7 @@ async function loadLatestPost() {
 
             return `
                                     <div class="video-detail">
+                                        ${slide.video_description ? `<div class="asset-title">${slide.video_description}</div>` : ''}
                                         <video class="video-js vjs-big-play-centered vjs-theme-city" controls preload="auto" width="640" height="360">
                                             <source src="${slide.video_url}" type="${type}">
                                             <p class="vjs-no-js">
@@ -560,7 +561,6 @@ async function loadLatestPost() {
                                                 <a href="https://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a>
                                             </p>
                                         </video>
-                                        ${slide.video_description ? `<div class="video-description">${slide.video_description}</div>` : ''}
                                     </div>
                                 `;
         })() : ''}
@@ -621,8 +621,8 @@ async function loadPostDetails(id) {
                             <img src="${slide.image_url}" class="slide-image" loading="lazy">
                             ${slide.audio_url ? `
                                 <div class="audio-wrapper">
+                                    ${slide.audio_description ? `<div class="asset-title">${slide.audio_description}</div>` : ''}
                                     <audio controls src="${slide.audio_url}"></audio>
-                                     ${slide.audio_description ? `<div class="audio-description">${slide.audio_description}</div>` : ''}
                                 </div>
                             ` : ''}
                             ${slide.video_url ? (function () {
@@ -632,6 +632,7 @@ async function loadPostDetails(id) {
 
             return `
                                     <div class="video-detail">
+                                        ${slide.video_description ? `<div class="asset-title">${slide.video_description}</div>` : ''}
                                         <video class="video-js vjs-big-play-centered vjs-theme-city" controls preload="auto" width="640" height="360">
                                             <source src="${slide.video_url}" type="${type}">
                                             <p class="vjs-no-js">
@@ -639,7 +640,6 @@ async function loadPostDetails(id) {
                                                 <a href="https://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a>
                                             </p>
                                         </video>
-                                        ${slide.video_description ? `<div class="video-description">${slide.video_description}</div>` : ''}
                                     </div>
                                 `;
         })() : ''}
@@ -1928,8 +1928,9 @@ function initVideoPlayers() {
 async function convertPDFToImages(pdfFile) {
     console.log('[PDF] Starting conversion for:', pdfFile.name);
 
-    // Configure PDF.js Worker
-    const pdfjsLib = window['pdfjs-dist/build/pdf'];
+    // Configure PDF.js via dynamic import for ES module compatibility
+    const pdfjsDist = await import('https://unpkg.com/pdfjs-dist@4.0.379/build/pdf.min.mjs');
+    const pdfjsLib = pdfjsDist;
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://unpkg.com/pdfjs-dist@4.0.379/build/pdf.worker.min.mjs';
 
     const arrayBuffer = await pdfFile.arrayBuffer();
