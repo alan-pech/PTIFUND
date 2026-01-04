@@ -1709,7 +1709,7 @@ textarea {
 .post-document {
     background: transparent;
     border-top: 1px solid #eee;
-    padding: 1.5rem 0 0 0;
+    padding: 1.5rem 0 0 1rem;
     margin-top: 1rem;
 }
 

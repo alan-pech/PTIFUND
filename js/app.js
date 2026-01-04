@@ -6,7 +6,7 @@
  */
 
 // --- Constants & State ---
-const APP_VERSION = 'v1.0.076';
+const APP_VERSION = 'v1.0.077';
 const ADMIN_ROUTE_SECRET = 'admin-portal'; // Accessible via index.html#admin-portal
 
 let currentUser = null;
@@ -1281,6 +1281,8 @@ function showContextMenu(x, y, data, postId) {
         // Full menu for slides
         const hasAudio = !!data.audio_url && data.audio_url !== '';
         const hasVideo = !!data.video_url && data.video_url !== '';
+        // Check string "true" because dataset values are strings
+        const hasDocument = data.hasDocument === 'true' || data.hasDocument === true;
 
         menu.innerHTML = `
             <div class="menu-item" id="menu-record-action">
@@ -1290,7 +1292,7 @@ function showContextMenu(x, y, data, postId) {
                 🎥 ${hasVideo ? 'Edit' : 'Add'} Video
             </div>
             <div class="menu-item" id="menu-document-action">
-                📄 Document
+                📄 ${hasDocument ? 'Edit' : 'Add'} Document
             </div>
             <div class="menu-item delete" id="menu-delete-slide">🗑️ Delete Slide</div>
         `;
@@ -1514,7 +1516,7 @@ async function renderAdminEditGallery(container, postId) {
                 ${(slides || []).map(slide => `
                     <div class="slide-group" data-slide-id="${slide.id}">
                         <div class="slide-card-wrapper item-wrapper" data-type="slide" data-id="${slide.id}">
-                            <div class="gallery-item" data-id="${slide.id}" data-image="${slide.image_url}" data-audio="${slide.audio_url || ''}" data-audio-description="${slide.audio_description || ''}" data-video="${slide.video_url || ''}" data-video-description="${slide.video_description || ''}">
+                            <div class="gallery-item" data-id="${slide.id}" data-image="${slide.image_url}" data-audio="${slide.audio_url || ''}" data-audio-description="${slide.audio_description || ''}" data-video="${slide.video_url || ''}" data-video-description="${slide.video_description || ''}" data-has-document="${!!slide.document_html}">
                                 <img src="${slide.image_url}" loading="lazy">
                             </div>
                             <div class="slide-label">Slide ${slide.order_index + 1}</div>
