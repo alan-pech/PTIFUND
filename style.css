@@ -604,6 +604,20 @@ textarea {
     min-width: 180px;
 }
 
+@media (max-width: 600px) {
+    .slides-grid {
+        grid-template-columns: repeat(2, 1fr);
+        /* Force 2 columns */
+        gap: 0.75rem;
+    }
+
+    .slide-card-wrapper {
+        min-width: unset;
+        /* Allow items to shrink to grid track */
+        width: 100%;
+    }
+}
+
 .gallery-item {
     background: white;
     border-radius: 16px;
@@ -1722,6 +1736,15 @@ textarea {
 .post-document a:hover {
     text-decoration: none;
     color: #e67e22;
+}
+
+/* Ensure images in documents are responsive */
+.ql-editor img,
+.post-document img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 1rem auto;
 }
 
 .document-content {

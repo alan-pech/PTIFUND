@@ -6,7 +6,7 @@
  */
 
 // --- Constants & State ---
-const APP_VERSION = 'v1.0.077';
+const APP_VERSION = 'v1.0.078';
 const ADMIN_ROUTE_SECRET = 'admin-portal'; // Accessible via index.html#admin-portal
 
 let currentUser = null;
@@ -1598,6 +1598,12 @@ function initDragAndDrop(postId) {
         return;
     }
 
+    // Disable Drag-and-Drop on Mobile (per user request)
+    if (window.innerWidth <= 768) {
+        console.log('[DragDrop] Mobile device detected, disabling drag-and-drop.');
+        return;
+    }
+
     console.log('[DragDrop] Initializing SortableJS for gallery with', gallery.children.length, 'items');
 
     // Initialize SortableJS
@@ -1653,7 +1659,8 @@ function initDragAndDrop(postId) {
                 audio_url: item.dataset.audio || null,
                 audio_description: item.dataset.audioDescription || null,
                 video_url: item.dataset.video || null,
-                video_description: item.dataset.videoDescription || null
+                video_description: item.dataset.videoDescription || null,
+                hasDocument: item.dataset.hasDocument
             };
             showContextMenu(pageX, pageY, slide, postId);
         }
