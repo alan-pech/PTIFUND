@@ -1320,6 +1320,18 @@ textarea {
     min-width: 140px;
 }
 
+@media (max-width: 600px) {
+    .slide-group {
+        grid-auto-columns: minmax(0, 1fr);
+        /* Allow internal items to shrink */
+    }
+
+    .asset-card-wrapper {
+        min-width: 0;
+        /* Allow assets to shrink */
+    }
+}
+
 .asset-card {
     background: white;
     border: 2px solid #edf2f7;
