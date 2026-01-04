@@ -6,7 +6,7 @@
  */
 
 // --- Constants & State ---
-const APP_VERSION = 'v1.0.080';
+const APP_VERSION = 'v1.0.081';
 const ADMIN_ROUTE_SECRET = 'admin-portal'; // Accessible via index.html#admin-portal
 
 let currentUser = null;
@@ -1598,35 +1598,34 @@ function initDragAndDrop(postId) {
         return;
     }
 
-    // Disable Drag-and-Drop on Mobile (per user request)
-    if (window.innerWidth <= 768) {
-        console.log('[DragDrop] Mobile device detected, disabling drag-and-drop.');
-        return;
-    }
+    // Only Initialize Drag-and-Drop if NOT on Mobile
+    if (window.innerWidth > 768) {
+        console.log('[DragDrop] Initializing SortableJS for gallery with', gallery.children.length, 'items');
 
-    console.log('[DragDrop] Initializing SortableJS for gallery with', gallery.children.length, 'items');
-
-    // Initialize SortableJS
-    const sortable = Sortable.create(gallery, {
-        animation: 150,
-        draggable: '.slide-group',
-        ghostClass: 'sortable-ghost',
-        chosenClass: 'sortable-chosen',
-        dragClass: 'sortable-drag',
-        forceFallback: false,
-        onStart: function (evt) {
-            console.log('[DragDrop] Drag started', evt.oldIndex);
-        },
-        onEnd: function (evt) {
-            console.log('[DragDrop] Drag ended. From:', evt.oldIndex, 'To:', evt.newIndex);
-            // Update the order in the database after drag ends
-            if (evt.oldIndex !== evt.newIndex) {
-                updateSlideOrder(postId);
+        // Initialize SortableJS
+        const sortable = Sortable.create(gallery, {
+            animation: 150,
+            draggable: '.slide-group',
+            ghostClass: 'sortable-ghost',
+            chosenClass: 'sortable-chosen',
+            dragClass: 'sortable-drag',
+            forceFallback: false,
+            onStart: function (evt) {
+                console.log('[DragDrop] Drag started', evt.oldIndex);
+            },
+            onEnd: function (evt) {
+                console.log('[DragDrop] Drag ended. From:', evt.oldIndex, 'To:', evt.newIndex);
+                // Update the order in the database after drag ends
+                if (evt.oldIndex !== evt.newIndex) {
+                    updateSlideOrder(postId);
+                }
             }
-        }
-    });
+        });
 
-    console.log('[DragDrop] SortableJS initialized successfully');
+        console.log('[DragDrop] SortableJS initialized successfully');
+    } else {
+        console.log('[DragDrop] Mobile device detected, skipping SortableJS (drag-and-drop disabled).');
+    }
 
     // Event Delegation for Context Menu
     const handleContextMenu = (pageX, pageY, item) => {
